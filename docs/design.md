@@ -37,6 +37,42 @@ Skills are Markdown playbooks the Claude Code `Skill` tool loads. The model exec
 
 ## Execution: four phases
 
+```mermaid
+flowchart TD
+    Start([User invocation:<br/>'use gcp-ironclad']):::terminal
+    Phase0[Phase 0 — Discover scope<br/>gcloud projects + billing accounts<br/>→ scope.json]:::setup
+
+    Audit[gcp-credentials-audit<br/>inventory + risk class<br/>→ audit.json]:::readonly
+    AnomalyScan[gcp-cost-anomaly-scan<br/>historical spike detection<br/>→ anomalies.json]:::readonly
+
+    Gate{Phase 2 gate<br/>active spike?<br/>&gt;10x baseline / 24h?}:::gate
+
+    Guardrails[gcp-spend-guardrails<br/>quotas + budgets + idle-API disable<br/>→ guardrails-applied.json]:::apply
+    Restrict[gcp-key-restrictions<br/>lock down unrestricted keys<br/>→ key-restrictions.json]:::apply
+
+    Report([Final report<br/>~/.claude/reports/<br/>gcp-ironclad-&lt;ts&gt;.md]):::terminal
+
+    Start --> Phase0
+    Phase0 --> Audit
+    Phase0 --> AnomalyScan
+    Audit --> Gate
+    AnomalyScan --> Gate
+    Gate -->|yes: HALT| Report
+    Gate -->|no: proceed| Guardrails
+    Guardrails --> Restrict
+    Restrict --> Report
+
+    classDef readonly fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
+    classDef apply fill:#fff3e0,stroke:#e65100,color:#bf360c
+    classDef gate fill:#fff9c4,stroke:#f9a825,color:#827717
+    classDef terminal fill:#e3f2fd,stroke:#1565c0,color:#0d47a1
+    classDef setup fill:#f3e5f5,stroke:#6a1b9a,color:#4a148c
+```
+
+> **Legend** — 🟢 READ-ONLY phases · 🟠 APPLY phases (mutating but idempotent + reversible) · 🟡 safety gate · 🟣 setup · 🔵 terminal
+
+Spelled out as text:
+
 ```
 Phase 0 — Discover scope (driver)
             gcloud projects list, gcloud billing accounts list, gcloud config get-value account

@@ -41,6 +41,44 @@ gcp-ironclad/
 └── .mcp.json.example              Template for Claude Code MCP registration
 ```
 
+## How it works
+
+```mermaid
+flowchart TD
+    Start([User: 'use gcp-ironclad']):::terminal
+    Phase0[Phase 0 — Discover scope<br/>gcloud projects + billing accounts]:::setup
+
+    Audit[gcp-credentials-audit<br/>inventory + risk class<br/>READ-ONLY]:::readonly
+    AnomalyScan[gcp-cost-anomaly-scan<br/>historical spike detection<br/>READ-ONLY]:::readonly
+
+    Gate{Active spike?<br/>&gt;10x baseline / 24h?}:::gate
+
+    Guardrails[gcp-spend-guardrails<br/>quotas + budgets + idle-API disable<br/>APPLY · idempotent · reversible]:::apply
+    Restrict[gcp-key-restrictions<br/>lock down unrestricted keys<br/>APPLY · idempotent · reversible]:::apply
+
+    Report([Final report<br/>~/.claude/reports/<br/>gcp-ironclad-&lt;ts&gt;.md]):::terminal
+
+    Start --> Phase0
+    Phase0 --> Audit
+    Phase0 --> AnomalyScan
+    Audit --> Gate
+    AnomalyScan --> Gate
+    Gate -->|yes: HALT| Report
+    Gate -->|no: proceed| Guardrails
+    Guardrails --> Restrict
+    Restrict --> Report
+
+    classDef readonly fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
+    classDef apply fill:#fff3e0,stroke:#e65100,color:#bf360c
+    classDef gate fill:#fff9c4,stroke:#f9a825,color:#827717
+    classDef terminal fill:#e3f2fd,stroke:#1565c0,color:#0d47a1
+    classDef setup fill:#f3e5f5,stroke:#6a1b9a,color:#4a148c
+```
+
+> **Legend** — 🟢 READ-ONLY · 🟠 APPLY (mutating, but idempotent + reversible) · 🟡 safety gate · 🟣 setup · 🔵 terminal
+
+The two READ-ONLY phases run first, so the audit is visible before anything mutates. The active-spike gate halts Phase 3 if any project is currently bleeding. Every applied change has its rollback command in the final report. Full spec in [`docs/design.md`](docs/design.md).
+
 ## Requirements
 
 - [Claude Code](https://claude.com/claude-code)
