@@ -56,7 +56,8 @@ git clone https://github.com/<your-fork-or-shivam>/gcp-ironclad.git
 cd gcp-ironclad
 
 # 1. Install the MCP server
-pip install -e ./mcp/gcp-finops
+pip install ./mcp/gcp-finops
+# (use `pip install -e ./mcp/gcp-finops` if you want editable / dev mode)
 
 # 2. Authenticate Application Default Credentials
 gcloud auth application-default login
@@ -94,7 +95,11 @@ The driver auto-discovers your project + billing scope from `gcloud`. No IDs har
 - `--dry-run` runs every phase without mutating; `--confirm-each` re-introduces a y/n prompt per applied action.
 - **Never auto-applied:** key deletion, IAM changes, billing-account close, lowering a quota below current usage, disabling any API with traffic in the last 30 days. All surfaced for human review with the exact `gcloud` command attached.
 
-See [`docs/design.md`](docs/design.md) for the full safety matrix and phase model.
+See [`docs/design.md`](docs/design.md) for the full safety matrix and phase model, and [`docs/threat-model.md`](docs/threat-model.md) for what the suite does and does **not** protect against.
+
+## Security
+
+Found a vulnerability? Please [report privately](SECURITY.md) rather than filing a public issue.
 
 ## Status
 

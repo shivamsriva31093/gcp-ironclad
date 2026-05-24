@@ -117,6 +117,10 @@ A markdown + JSON file at `~/.claude/reports/gcp-ironclad-<ts>.{md,json}`. Secti
 | Sub-skill failure | Sub-skill writes partial JSON with `errors[]`, exits non-fatally; driver continues and surfaces errors in the report. |
 | Two concurrent driver runs | Each gets its own timestamped session directory; no shared state. |
 
+## Security & threat model
+
+See [`threat-model.md`](threat-model.md) for what the suite does and does *not* protect against, the trust boundaries it crosses, and the mitigations in place. The MCP server's BigQuery queries are parameterised against injection; identifiers (project / dataset / table) are validated against a strict regex at the `Config` layer. Private vulnerability reports go through [`SECURITY.md`](../SECURITY.md) (root of the repo).
+
 ## Status / non-goals
 
 **v1 scope:** API-key + SA-key audit, spend guardrails, key restrictions, cost anomaly detection, final consolidated report.
