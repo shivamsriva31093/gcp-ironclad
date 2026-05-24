@@ -80,7 +80,7 @@ For each billing account where the caller is `billing.admin`:
      gcloud billing budgets create \
        --billing-account="${B}" \
        --display-name="gcp-ironclad-budget-${mult}x" \
-       --budget-amount="$(echo "${last_30d_spend} * ${mult}" | bc)INR" \
+       --budget-amount="$(echo "${last_30d_spend} * ${mult}" | bc)" \
        --threshold-rule=percent=1.0 \
        --calendar-period=month
      ```

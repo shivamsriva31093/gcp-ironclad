@@ -9,8 +9,8 @@ body:
         Sorry you're here. A few quick notes before you fill this in:
 
         - **If you're still bleeding right now:** disable the suspect API immediately (Console → APIs & Services → Disable on the affected project). Then delete the leaked API key (APIs & Services → Credentials). Then open a Cloud Console support case and dispute the charges as fraud — Google routinely reimburses for compromised keys when reported promptly with evidence.
-        - **Redact everything before posting.** Project IDs, billing-account IDs, key strings, all of it.
-        - You don't owe us this report — we just appreciate hearing the pattern so we can improve the tooling.
+        - **🛑 REDACT EVERYTHING BEFORE POSTING. 🛑** GitHub issues are public and permanent. Strip every project ID, billing-account ID, key string (`AIza…`), service-account email, database URL, and any other identifier from anything you paste. **Maintainers will close — and request deletion of — any issue that contains an unredacted identifier.**
+        - You don't owe us this report. We just appreciate hearing the pattern so we can improve the tooling.
 
   - type: textarea
     id: timeline

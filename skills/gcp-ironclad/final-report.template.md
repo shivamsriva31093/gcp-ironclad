@@ -10,7 +10,7 @@
 Risk profile **before**: {{criticalBefore}} CRITICAL · {{highBefore}} HIGH · {{mediumBefore}} MEDIUM
 Risk profile **after**:  {{criticalAfter}} CRITICAL · {{highAfter}} HIGH · {{mediumAfter}} MEDIUM
 Anomalies detected (last 60d): {{anomalyCount}} ({{activeAnomalies}} active in last 24h)
-Money at risk (approx.): {{moneyAtRisk}} INR
+Money at risk (approx.): {{moneyAtRisk}}
 Actions applied: {{actionsApplied}} · Flagged: {{actionsFlagged}}
 
 {{#activeSpike}}🚨 ACTIVE SPIKE — Phase 3 did NOT run. See §3 for details.{{/activeSpike}}
@@ -31,7 +31,7 @@ Actions applied: {{actionsApplied}} · Flagged: {{actionsFlagged}}
 ## 3. Cost anomaly check (last 60 days)
 
 {{#anomalies}}
-- **{{date}}** · `{{project}}` · `{{billingAccount}}` · gross **₹{{gross}}** ({{multipleOver}}× baseline) · top SKU: `{{topSku}}` {{#activeIn24h}}🚨 STILL ACTIVE{{/activeIn24h}}
+- **{{date}}** · `{{project}}` · `{{billingAccount}}` · gross **{{gross}}** ({{multipleOver}}× baseline) · top SKU: `{{topSku}}` {{#activeIn24h}}🚨 STILL ACTIVE{{/activeIn24h}}
 {{/anomalies}}
 {{^anomalies}}
 No anomalies in the last 60 days.
@@ -71,3 +71,7 @@ No anomalies in the last 60 days.
 - [ ] For each `Flagged for human review` item: decide whether to run the suggested command.
 - [ ] Rotate any SA keys older than 90 days using your normal rotation process.
 - [ ] Re-run this skill in 30 days for a clean re-audit.
+
+---
+
+> ⚠ **Redact before sharing.** This report contains GCP identifiers (project IDs, key UIDs, billing-account IDs, sometimes service-account emails). Strip them before pasting into issues, PRs, support tickets, or chat. See [`SECURITY.md`](../../SECURITY.md) for the threat-model summary.
