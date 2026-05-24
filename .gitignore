@@ -30,6 +30,9 @@ Thumbs.db
 *.swp
 *.swo
 
+# Claude Code local workspace settings (per-user MCP toggles etc.)
+.claude/
+
 # Generated reports / session dirs
 /tmp/gcp-ironclad/
 reports/
