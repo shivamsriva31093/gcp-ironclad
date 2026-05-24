@@ -1,0 +1,66 @@
+name: Bug report
+description: Report something that didn't work as expected
+title: "[bug] "
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. The more specific, the easier to fix — what command you ran, what you expected, what you saw.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Which component?
+      options:
+        - skills/gcp-ironclad (driver)
+        - skills/gcp-credentials-audit
+        - skills/gcp-cost-anomaly-scan
+        - skills/gcp-spend-guardrails
+        - skills/gcp-key-restrictions
+        - mcp/gcp-finops
+        - docs / README / install instructions
+        - other / not sure
+    validations:
+      required: true
+
+  - type: input
+    id: gcloud-version
+    attributes:
+      label: gcloud SDK version
+      description: Output of `gcloud --version | head -1`
+      placeholder: e.g. "Google Cloud SDK 525.0.0"
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version (only if reporting an MCP issue)
+      description: Output of `python3 --version`
+      placeholder: e.g. "Python 3.12.1"
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you run, what did you expect, what did you see?
+      placeholder: |
+        I ran:        ...
+        I expected:   ...
+        I saw:        ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output / logs
+      description: Paste the failing command output. **Redact** any project IDs, billing-account IDs, API key strings, DB URLs, or other identifiers.
+      render: text
+
+  - type: checkboxes
+    id: redaction-check
+    attributes:
+      label: Before submitting
+      options:
+        - label: I have redacted project IDs, billing-account IDs, API key strings, DB URLs, and any other identifiers from logs and screenshots above
+          required: true

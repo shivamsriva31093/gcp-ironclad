@@ -1,0 +1,77 @@
+name: I just got hit — share what happened
+description: For people who landed here after a leaked-key / fraud incident. Use this to ask for help or to contribute the pattern back so others can learn from it.
+title: "[incident] "
+labels: [incident-story]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Sorry you're here. A few quick notes before you fill this in:
+
+        - **If you're still bleeding right now:** disable the suspect API immediately (Console → APIs & Services → Disable on the affected project). Then delete the leaked API key (APIs & Services → Credentials). Then open a Cloud Console support case and dispute the charges as fraud — Google routinely reimburses for compromised keys when reported promptly with evidence.
+        - **Redact everything before posting.** Project IDs, billing-account IDs, key strings, all of it.
+        - You don't owe us this report — we just appreciate hearing the pattern so we can improve the tooling.
+
+  - type: textarea
+    id: timeline
+    attributes:
+      label: Timeline (rough)
+      description: When did the spike start and stop? Total damage? Use ranges — no need to be exact.
+      placeholder: |
+        - Started around: ...
+        - Stopped around: ...
+        - Total spend during the window: ~$
+        - Normal daily baseline before the incident: ~$/day
+
+  - type: dropdown
+    id: vector
+    attributes:
+      label: Suspected attack vector (best guess)
+      options:
+        - Leaked unrestricted API key (committed to git / public repo)
+        - API key in a deployed mobile / web app bundle
+        - Compromised service-account JSON key
+        - Compromised OAuth credential
+        - Compromised CI / dev machine
+        - Unsure
+        - Other (describe below)
+
+  - type: dropdown
+    id: service-abused
+    attributes:
+      label: Which service(s) was abused?
+      multiple: true
+      options:
+        - Gemini API (generativelanguage.googleapis.com)
+        - Vertex AI
+        - Maps Platform
+        - Translation API
+        - Other Google AI surface
+        - Compute Engine (crypto mining)
+        - Other (describe below)
+
+  - type: textarea
+    id: what-stopped-it
+    attributes:
+      label: What stopped the bleed?
+      description: Disabled the API? Deleted the key? Google fraud detection? Quota limit hit?
+
+  - type: textarea
+    id: dispute-outcome
+    attributes:
+      label: Dispute outcome (if you've heard back from Google)
+      description: Did Google reimburse? Partial? Still pending? Helps others know what to expect.
+
+  - type: textarea
+    id: what-helped
+    attributes:
+      label: Would gcp-ironclad have helped?
+      description: If you'd had this skill suite running before the incident, would it have detected or prevented it? What was missing that should be added?
+
+  - type: checkboxes
+    id: redaction-check
+    attributes:
+      label: Before submitting
+      options:
+        - label: I have redacted all project IDs, billing-account IDs, API key strings, and other identifiers from anything pasted above
+          required: true

@@ -1,0 +1,41 @@
+name: Feature request
+description: Suggest something this project should do (or do differently)
+title: "[feat] "
+labels: [enhancement, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Want to add or change something? Describe the **use case** first, the **solution** second. We tend to prefer narrow, opt-in features over broad defaults.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: A use case, not a solution. "I wish I could X" or "Today I have to do Y manually."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Suggested approach (optional)
+      description: How might this work? Which skill / MCP tool would it touch? Linking to relevant `gcloud` or Cloud Billing API docs helps.
+
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety implications
+      description: |
+        Would this introduce a new mutating action? A new auto-apply default? Could it break a user's production workload?
+        If so, what's the **precondition** that would make it safe to auto-apply, versus when it should be demoted to "flag for review"?
+
+  - type: checkboxes
+    id: scope-check
+    attributes:
+      label: Scope sanity check
+      description: |
+        v1 explicitly does **not** auto-delete credentials, modify IAM, close billing accounts, or operate cross-org.
+        See [docs/design.md § Status / non-goals](../docs/design.md). New auto-apply mutating actions should be opt-in by default.
+      options:
+        - label: I've checked this isn't on the v1 non-goals list — or if it is, I'm proposing it as opt-in
