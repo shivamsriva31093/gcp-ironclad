@@ -15,7 +15,9 @@
 
 Use GitHub's private security advisory feature:
 
-→ **https://github.com/`<owner>`/gcp-ironclad/security/advisories/new**
+→ **https://github.com/`<YOUR-GITHUB-ORG>`/gcp-ironclad/security/advisories/new**
+
+*(Maintainer: replace `<YOUR-GITHUB-ORG>` with the canonical repo path before publishing.)*
 
 You can expect:
 
