@@ -11,6 +11,7 @@ jobs:
   pytest:
     name: pytest (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -35,6 +36,7 @@ jobs:
   validate-schemas:
     name: validate skill JSON schemas + SKILL.md frontmatter
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
 
@@ -45,50 +47,54 @@ jobs:
       - name: Install jsonschema
         run: pip install jsonschema
 
-      - name: Every output.schema.json must be a valid Draft-07 schema
-        run: |
-          fail=0
-          for f in skills/*/output.schema.json; do
-            echo "checking $f"
-            python -c "
-          import json, jsonschema, sys
-          try:
-              schema = json.load(open('$f'))
-              jsonschema.Draft7Validator.check_schema(schema)
-              print('  OK')
-          except Exception as e:
-              print(f'  FAIL: {e}', file=sys.stderr); sys.exit(1)
-          " || fail=1
-          done
-          exit $fail
+      - name: Validate all schemas + frontmatter
+        run: python .github/scripts/validate_schemas.py
 
-      - name: Every SKILL.md must have frontmatter with name + description
-        run: |
-          fail=0
-          for f in skills/*/SKILL.md; do
-            head=$(head -10 "$f")
-            if ! echo "$head" | grep -q '^name:'; then
-              echo "FAIL: $f is missing frontmatter 'name:'"; fail=1
-            fi
-            if ! echo "$head" | grep -q '^description:'; then
-              echo "FAIL: $f is missing frontmatter 'description:'"; fail=1
-            fi
-          done
-          if [ $fail -eq 0 ]; then
-            echo "All SKILL.md frontmatters OK"
-          fi
-          exit $fail
+  bandit:
+    name: bandit (static security analysis)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Skill name in frontmatter must match its directory name
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install bandit
+        run: pip install "bandit[toml]"
+
+      - name: Run bandit on MCP server source
+        # -ll surfaces Medium + High severity findings.
+        # The exit code is non-zero on findings, which fails the job.
+        run: bandit -r mcp/gcp-finops/src -ll
+
+  pip-audit:
+    name: pip-audit (dependency CVE scan)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Extract runtime deps from pyproject.toml
+        # pip-audit can't resolve our local package against PyPI (and it
+        # shouldn't have to). Audit just the declared runtime dependencies.
         run: |
-          fail=0
-          for f in skills/*/SKILL.md; do
-            dir=$(dirname "$f")
-            expected=$(basename "$dir")
-            actual=$(grep '^name:' "$f" | head -1 | sed 's/^name: *//')
-            if [ "$actual" != "$expected" ]; then
-              echo "FAIL: $f has name: '$actual' but lives in directory '$expected'"
-              fail=1
-            fi
-          done
-          exit $fail
+          python - <<'PY'
+          import tomllib
+          deps = tomllib.load(open("mcp/gcp-finops/pyproject.toml", "rb"))["project"]["dependencies"]
+          with open("/tmp/runtime-requirements.txt", "w") as f:
+              f.write("\n".join(deps) + "\n")
+          print(open("/tmp/runtime-requirements.txt").read())
+          PY
+
+      - name: Audit runtime deps for known CVEs
+        # Strict mode: fail on any known vulnerability.
+        run: pip-audit -r /tmp/runtime-requirements.txt --strict
