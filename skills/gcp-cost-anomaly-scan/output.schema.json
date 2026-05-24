@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "gcp-cost-anomaly-scan output",
+  "type": "object",
+  "required": ["schemaVersion", "generatedAt", "billingAccountsScanned", "anomalies", "errors"],
+  "properties": {
+    "schemaVersion":          { "const": 1 },
+    "generatedAt":            { "type": "string", "format": "date-time" },
+    "billingAccountsScanned": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["billingAccount", "displayName", "hasExport"],
+        "properties": {
+          "billingAccount": { "type": "string" },
+          "displayName":    { "type": "string" },
+          "hasExport":      { "type": "boolean" }
+        }
+      }
+    },
+    "anomalies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["billingAccount", "project", "date", "gross", "net", "baseline", "multipleOver", "topSku", "activeIn24h"],
+        "properties": {
+          "billingAccount": { "type": "string" },
+          "project":        { "type": "string" },
+          "date":           { "type": "string", "format": "date" },
+          "gross":          { "type": "number" },
+          "net":            { "type": "number" },
+          "baseline":       { "type": "number" },
+          "multipleOver":   { "type": "number" },
+          "topSku":         { "type": "string" },
+          "activeIn24h":    { "type": "boolean" }
+        }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["context", "message"],
+        "properties": {
+          "context": { "type": "string" },
+          "message": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+[project]
+name = "gcp-finops-mcp"
+version = "0.1.0"
+description = "MCP server for GCP billing analysis via Claude Code"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp>=1.20",
+    "google-cloud-bigquery>=3.25",
+    "google-cloud-recommender>=2.15",
+    "google-cloud-billing-budgets>=1.14",
+    "google-cloud-billing>=1.13",
+    "asyncpg>=0.29",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gcp_finops_mcp"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

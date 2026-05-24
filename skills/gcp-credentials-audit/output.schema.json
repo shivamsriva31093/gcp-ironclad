@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "gcp-credentials-audit output",
+  "type": "object",
+  "required": ["schemaVersion", "generatedAt", "scope", "credentials", "errors"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "generatedAt":   { "type": "string", "format": "date-time" },
+    "scope": {
+      "type": "object",
+      "required": ["user", "projectsScanned", "projectsSkipped"],
+      "properties": {
+        "user":             { "type": "string" },
+        "projectsScanned":  { "type": "array", "items": { "type": "string" } },
+        "projectsSkipped":  {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["projectId", "reason"],
+            "properties": {
+              "projectId": { "type": "string" },
+              "reason":    { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "credentials": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["type", "project", "uid", "displayName", "createTime", "restrictions", "riskClass", "riskReason"],
+            "properties": {
+              "type":         { "const": "api_key" },
+              "project":      { "type": "string" },
+              "uid":          { "type": "string" },
+              "displayName":  { "type": "string" },
+              "createTime":   { "type": "string", "format": "date-time" },
+              "lastUsedAt":   { "type": ["string", "null"] },
+              "restrictions": { "type": ["object", "null"] },
+              "riskClass":    { "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"] },
+              "riskReason":   { "type": "string" }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["type", "project", "serviceAccount", "keyId", "createTime", "riskClass", "riskReason"],
+            "properties": {
+              "type":           { "const": "sa_key" },
+              "project":        { "type": "string" },
+              "serviceAccount": { "type": "string" },
+              "keyId":          { "type": "string" },
+              "createTime":     { "type": "string", "format": "date-time" },
+              "lastUsedAt":     { "type": ["string", "null"] },
+              "riskClass":      { "enum": ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"] },
+              "riskReason":     { "type": "string" }
+            }
+          }
+        ]
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["context", "message"],
+        "properties": {
+          "context": { "type": "string" },
+          "message": { "type": "string" }
+        }
+      }
+    }
+  }
+}

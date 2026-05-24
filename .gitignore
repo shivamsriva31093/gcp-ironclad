@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+.pytest_cache/
+.venv/
+venv/
+.coverage
+.coverage.*
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+
+# MCP — users copy .mcp.json.example to .mcp.json with their own values
+.mcp.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Generated reports / session dirs
+/tmp/gcp-ironclad/
+reports/

@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "gcp-finops": {
+      "command": "python",
+      "args": ["-m", "gcp_finops_mcp.server"],
+      "cwd": "<absolute-path-to-this-repo>/mcp/gcp-finops",
+      "env": {
+        "GCP_PROJECT_ID": "<your-gcp-project-id>",
+        "BQ_BILLING_DATASET": "billing_export",
+        "BQ_BILLING_TABLE": "<your-billing-export-table-name>",
+        "CURRENCY_SYMBOL": "$",
+        "LLM_USAGE_DB_URL": "postgresql://user:password@host:5432/db   (optional — only needed for the user_llm_costs / provider_llm_costs tools, which assume a specific schema; leave unset to disable those tools)"
+      }
+    }
+  }
+}
