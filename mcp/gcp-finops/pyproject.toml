@@ -3,19 +3,22 @@ name = "gcp-finops-mcp"
 version = "0.1.0"
 description = "MCP server for GCP billing analysis via Claude Code"
 requires-python = ">=3.11"
+# Upper bounds limit supply-chain blast radius from a malicious upstream
+# release. Bump when these majors actually ship breaking changes you've
+# tested against.
 dependencies = [
-    "mcp>=1.20",
-    "google-cloud-bigquery>=3.25",
-    "google-cloud-recommender>=2.15",
-    "google-cloud-billing-budgets>=1.14",
-    "google-cloud-billing>=1.13",
-    "asyncpg>=0.29",
+    "mcp>=1.20,<2",
+    "google-cloud-bigquery>=3.25,<4",
+    "google-cloud-recommender>=2.15,<3",
+    "google-cloud-billing-budgets>=1.14,<2",
+    "google-cloud-billing>=1.13,<2",
+    "asyncpg>=0.29,<1",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.0",
-    "pytest-asyncio>=0.23",
+    "pytest>=8.0,<9",
+    "pytest-asyncio>=0.23,<1",
 ]
 
 [build-system]
@@ -28,3 +31,14 @@ packages = ["src/gcp_finops_mcp"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.bandit]
+# B608 (hardcoded_sql_expressions) flags any f-string that looks like SQL.
+# Our query builders interpolate ONLY validated identifiers (project/dataset/
+# table — see `Config.__post_init__` and `_IDENT_RE` in `config.py`). All
+# user-supplied values flow through BigQuery `@`-parameter binding (see
+# `tools/bigquery.py::ScalarQueryParameter(...)`) or asyncpg `$1, $2`
+# binding (see `tools/llm_costs.py::_query_db`). The B608 hits are bandit
+# being unable to see the parameter-binding statically; the rule does not
+# apply to this codebase.
+skips = ["B608"]

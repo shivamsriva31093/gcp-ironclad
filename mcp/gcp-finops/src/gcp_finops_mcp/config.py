@@ -1,5 +1,25 @@
 import os
+import re
 from dataclasses import dataclass
+
+# BigQuery project / dataset / table identifiers can contain letters, digits,
+# underscores, and hyphens — and start with a letter or underscore. We restrict
+# to this set so identifiers are safe to interpolate as table references in
+# query strings (they cannot be passed as BigQuery query parameters).
+_IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]{0,1023}$")
+
+
+def _valid_ident(value: str | None, name: str) -> str | None:
+    """Validate a BigQuery identifier. Returns the value unchanged or raises
+    ValueError. `None` passes through (means 'not configured')."""
+    if value is None:
+        return None
+    if not _IDENT_RE.match(value):
+        raise ValueError(
+            f"Invalid {name}: {value!r}. Must match {_IDENT_RE.pattern} "
+            "(letters, digits, underscore, hyphen; starts with letter/underscore)."
+        )
+    return value
 
 
 @dataclass(frozen=True)
@@ -9,6 +29,15 @@ class Config:
     bq_billing_table: str | None
     llm_usage_db_url: str | None
     currency_symbol: str = "$"
+
+    def __post_init__(self):
+        # Validate identifiers on every Config construction (not just from_env).
+        # This is defense-in-depth: even if a future caller builds Config()
+        # directly with attacker-controlled values, identifiers are checked
+        # before they reach a query string.
+        _valid_ident(self.gcp_project_id, "gcp_project_id")
+        _valid_ident(self.bq_billing_dataset, "bq_billing_dataset")
+        _valid_ident(self.bq_billing_table, "bq_billing_table")
 
     @classmethod
     def from_env(cls) -> "Config":

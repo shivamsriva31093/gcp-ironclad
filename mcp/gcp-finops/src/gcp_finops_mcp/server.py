@@ -1,3 +1,5 @@
+import asyncio
+
 from mcp.server.fastmcp import FastMCP
 
 from gcp_finops_mcp.config import Config
@@ -29,8 +31,14 @@ def _get_config() -> Config:
     return _config
 
 
+# All GCP-touching tools below run their blocking GCP-SDK / I/O calls in a
+# thread (`asyncio.to_thread`) so the MCP event loop stays responsive while
+# a query is in flight. Tools that already use an async DB driver (the
+# `_llm_costs` family, via asyncpg) stay natively async.
+
+
 @mcp.tool()
-def cost_summary(start_date: str, end_date: str) -> str:
+async def cost_summary(start_date: str, end_date: str) -> str:
     """Get total GCP cost broken down by service for a date range.
 
     Args:
@@ -40,11 +48,11 @@ def cost_summary(start_date: str, end_date: str) -> str:
     Returns:
         Markdown table of costs by service, sorted by net cost descending.
     """
-    return get_cost_summary(_get_config(), start_date, end_date)
+    return await asyncio.to_thread(get_cost_summary, _get_config(), start_date, end_date)
 
 
 @mcp.tool()
-def sku_breakdown(service_name: str, start_date: str, end_date: str) -> str:
+async def sku_breakdown(service_name: str, start_date: str, end_date: str) -> str:
     """Get SKU-level cost breakdown for a specific GCP service.
 
     Args:
@@ -52,32 +60,36 @@ def sku_breakdown(service_name: str, start_date: str, end_date: str) -> str:
         start_date: Start date in YYYY-MM-DD format
         end_date: End date in YYYY-MM-DD format
     """
-    return get_sku_breakdown(_get_config(), service_name, start_date, end_date)
+    return await asyncio.to_thread(
+        get_sku_breakdown, _get_config(), service_name, start_date, end_date
+    )
 
 
 @mcp.tool()
-def cost_trend(lookback_days: int = 14) -> str:
+async def cost_trend(lookback_days: int = 14) -> str:
     """Get day-by-day cost trend showing top services per day.
 
     Args:
-        lookback_days: Number of days to look back (default: 14)
+        lookback_days: Number of days to look back (default: 14, max: 366)
     """
-    return get_cost_trend(_get_config(), lookback_days)
+    return await asyncio.to_thread(get_cost_trend, _get_config(), lookback_days)
 
 
 @mcp.tool()
-def anomalies(threshold_pct: int = 30, lookback_days: int = 30) -> str:
+async def anomalies(threshold_pct: int = 30, lookback_days: int = 30) -> str:
     """Detect cost anomalies — days where spending spiked above the 7-day rolling average.
 
     Args:
         threshold_pct: Percentage above average to flag (default: 30)
-        lookback_days: Days to analyze (default: 30)
+        lookback_days: Days to analyze (default: 30, max: 366)
     """
-    return _detect_anomalies(_get_config(), threshold_pct, lookback_days)
+    return await asyncio.to_thread(
+        _detect_anomalies, _get_config(), threshold_pct, lookback_days
+    )
 
 
 @mcp.tool()
-def compare_costs(
+async def compare_costs(
     period_a_start: str,
     period_a_end: str,
     period_b_start: str,
@@ -95,41 +107,48 @@ def compare_costs(
         label_a: Label for first period (default: "Period A")
         label_b: Label for second period (default: "Period B")
     """
-    return _compare_periods(
-        _get_config(), period_a_start, period_a_end, period_b_start, period_b_end, label_a, label_b
+    return await asyncio.to_thread(
+        _compare_periods,
+        _get_config(),
+        period_a_start,
+        period_a_end,
+        period_b_start,
+        period_b_end,
+        label_a,
+        label_b,
     )
 
 
 @mcp.tool()
-def vertex_ai_costs(start_date: str, end_date: str) -> str:
+async def vertex_ai_costs(start_date: str, end_date: str) -> str:
     """Get detailed Vertex AI cost breakdown by SKU (Gemini tokens, etc.).
 
     Args:
         start_date: Start date in YYYY-MM-DD format
         end_date: End date in YYYY-MM-DD format
     """
-    return get_vertex_ai_costs(_get_config(), start_date, end_date)
+    return await asyncio.to_thread(get_vertex_ai_costs, _get_config(), start_date, end_date)
 
 
 # --- GCP Recommender ---
 
 
 @mcp.tool()
-def recommendations() -> str:
+async def recommendations() -> str:
     """Get GCP cost optimization recommendations (idle resources, oversized instances, etc.)."""
-    return get_recommendations(_get_config())
+    return await asyncio.to_thread(get_recommendations, _get_config())
 
 
 # --- Budget ---
 
 
 @mcp.tool()
-def budget_status() -> str:
+async def budget_status() -> str:
     """Get current budget configuration and alert thresholds from GCP Cloud Billing."""
-    return get_budget_status(_get_config())
+    return await asyncio.to_thread(get_budget_status, _get_config())
 
 
-# --- Deep-Mentor LLM Costs ---
+# --- LLM cost tools (optional — require LLM_USAGE_DB_URL) ---
 
 
 @mcp.tool()
@@ -159,20 +178,20 @@ async def provider_llm_costs(start_date: str, end_date: str) -> str:
 
 
 @mcp.tool()
-def discover_billing_tables() -> str:
+async def discover_billing_tables() -> str:
     """List all tables in the BigQuery billing export dataset.
 
     Finds the correct billing table name, shows row counts, and detects
     mismatches with the configured BQ_BILLING_TABLE. No parameters needed.
     """
-    return _discover_billing_tables(_get_config())
+    return await asyncio.to_thread(_discover_billing_tables, _get_config())
 
 
 # --- CSV Billing ---
 
 
 @mcp.tool()
-def load_billing_csv(file_path: str) -> str:
+async def load_billing_csv(file_path: str) -> str:
     """Load a GCP billing CSV exported from GCP Console and show cost-by-service summary.
 
     Use this when BigQuery billing export isn't available yet.
@@ -180,11 +199,11 @@ def load_billing_csv(file_path: str) -> str:
     Args:
         file_path: Absolute path to the CSV file downloaded from GCP Console > Billing > Cost Table
     """
-    return _load_billing_csv(_get_config(), file_path)
+    return await asyncio.to_thread(_load_billing_csv, _get_config(), file_path)
 
 
 @mcp.tool()
-def csv_sku_breakdown(file_path: str, service_name: str = "") -> str:
+async def csv_sku_breakdown(file_path: str, service_name: str = "") -> str:
     """Get SKU-level cost breakdown from a GCP billing CSV file.
 
     Use this when BigQuery billing export isn't available yet.
@@ -193,7 +212,9 @@ def csv_sku_breakdown(file_path: str, service_name: str = "") -> str:
         file_path: Absolute path to the CSV file downloaded from GCP Console > Billing > Cost Table
         service_name: Service to filter by (e.g., "Vertex AI"). Leave empty for all services.
     """
-    return _get_csv_sku_breakdown(_get_config(), file_path, service_name)
+    return await asyncio.to_thread(
+        _get_csv_sku_breakdown, _get_config(), file_path, service_name
+    )
 
 
 def main():
