@@ -66,8 +66,11 @@ jobs:
 
       - name: Run bandit on MCP server source
         # -ll surfaces Medium + High severity findings.
+        # -c points bandit at our pyproject.toml [tool.bandit] config which
+        # globally skips B608 (a Medium-confidence false positive that fires
+        # on every f-string-looking-like-SQL — our queries are parameterised).
         # The exit code is non-zero on findings, which fails the job.
-        run: bandit -r mcp/gcp-finops/src -ll
+        run: bandit -r mcp/gcp-finops/src -ll -c mcp/gcp-finops/pyproject.toml
 
   pip-audit:
     name: pip-audit (dependency CVE scan)
