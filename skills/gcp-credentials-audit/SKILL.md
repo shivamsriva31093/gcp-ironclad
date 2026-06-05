@@ -329,5 +329,26 @@ Print a one-paragraph summary:
 
 - Project inaccessible (`PERMISSION_DENIED`): record in `scope.projectsSkipped[]` with reason `"no_access"`; continue.
 - API Keys API not enabled on a project: record `"apikeys_api_disabled"`; continue.
+- CAI not enabled / no `cloudasset.viewer` on a scope: that scope's projects fall back to the per-project loop, and a `cai_fallback` recommendation (with the exact enable/grant commands) is appended to `errors[]`; continue. The audit **never** enables CAI itself (READ-ONLY).
 - Monitoring API call fails for a key: `lastUsedAt = null`; append to `errors[]`.
 - Any other unexpected error: append to `errors[]`; do not abort the audit.
+
+## Parity mode (`AUDIT_VERIFY_PARITY=1`)
+
+A one-time correctness check that the CAI fast path and the per-project loop produce the **same raw inventory**. Off by default (it runs both paths, defeating the speedup). When `AUDIT_VERIFY_PARITY=1`:
+
+1. After Step C1, also run the Step C2 loop over the **covered** projects into a separate `creds.loopcheck.json` (do not let it touch `creds.json`).
+2. Diff against the CAI records on the raw inventory fields only:
+
+```bash
+norm='sort_by(.uid // "\(.project)/\(.serviceAccount)/\(.keyId)")
+      | map({type,project,uid,serviceAccount,keyId,createTime,restrictions})'
+if diff <(jq -S "$norm" "${SESSION_DIR}/creds.cai.json") \
+        <(jq -S "$norm" "${SESSION_DIR}/creds.loopcheck.json"); then
+  echo "PARITY OK — CAI inventory matches the loop."
+else
+  echo "PARITY MISMATCH — investigate the field mapping before trusting the fast path."
+fi
+```
+
+A mismatch is a real defect in the CAI field mapping; fix before relying on the fast path.
