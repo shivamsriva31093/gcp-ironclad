@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Cloud Asset Inventory (CAI) fast-path for `gcp-credentials-audit`.** When `cloudasset.googleapis.com` is enabled and the caller has `roles/cloudasset.viewer`, the credentials audit inventories API keys and user-managed SA keys through a few org/folder-scoped CAI queries instead of a per-project `gcloud` loop — collapsing thousands of sequential calls into a handful on multi-organization accounts. Projects not covered by a successful CAI query (standalone projects, or scopes the caller can't read) transparently fall back to the existing per-project loop, and the audit emits the exact `gcloud services enable …` / grant-`roles/cloudasset.viewer` commands to unlock the fast path next run. Strict READ-ONLY is preserved — the audit never enables an API or changes IAM — and `audit.json` output is unchanged.
+- Opt-in `AUDIT_VERIFY_PARITY=1` mode that cross-checks the CAI fast path against the per-project loop on identical scope (a defect in field mapping shows up as a parity mismatch).
+- Runtime self-validation of the produced `audit.json` against `output.schema.json` at the end of the audit, with a structural `jq` fallback when the `jsonschema` CLI is absent.
+
+### Changed
+
+- The last-used signal in `gcp-credentials-audit` now issues one Cloud Monitoring query per project (grouped by `credential_id`) instead of one per key, so the enrichment step doesn't become the new bottleneck once CAI removes the inventory loop.
+- `docs/design.md`: cross-org inventory is now in scope (previously a v1 non-goal) and a CAI fast-path section was added. `docs/threat-model.md`: documents the new read-only `roles/cloudasset.viewer` scope and that missing CAI access degrades to the loop rather than escalating.
+
 ## [1.0.0] — 2026-05-25
 
 Initial public release.
