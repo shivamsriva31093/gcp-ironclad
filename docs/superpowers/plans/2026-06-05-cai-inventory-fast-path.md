@@ -85,7 +85,14 @@ Confirm: `name` ends `…/serviceAccounts/<email>/keys/<id>`; the resource carri
 
 - [ ] **Step 4: Record the outcome**
 
-In the PR description (or a scratch note), record: project-number format ✓/path, key resource field names, SA-key resource field names, and whether `restrictions`/`keyType` ride in `versionedResources` (fast form) or require the `gcloud asset list --content-type=resource` form. Tasks 2–5 assume the fast form with camel/snake-tolerant jq; if a field is missing entirely, follow Task 3 Step 5's resilience note.
+In the PR description (or a scratch note), record: project-number format ✓/path, key resource field names, SA-key resource field names, and whether `restrictions`/`keyType` ride in `versionedResources` (fast form) or require the `gcloud asset list --content-type=resource` form.
+
+**Findings (confirmed 2026-06-05 against the real account):**
+- `project` = `projects/<NUMBER>` ✓ — number→id join required.
+- API-key `versionedResources[0].resource` is **camelCase**: `uid`, `displayName`, `createTime`, `restrictions`, `name`, `updateTime`, `deleteTime`, `annotations`. `restrictions` present ⇒ **fast form works; resilience branch NOT needed** (kept only as defensive code).
+- ⚠️ **Soft-deleted API keys still appear in CAI** within their ~30-day purge window (carry a non-empty `deleteTime`). The loop's `gcloud services api-keys list` does **not** list deleted keys → the CAI mapping (Task 3) **must filter out any record with a non-empty `deleteTime`**, or it reports phantom keys and fails parity.
+- ⚠️ **SA-key email is in the result-level `displayName`** (`…/serviceAccounts/<email>/keys/<id>`), NOT `name` — the resource `name` uses the SA's **numeric** unique id (`…/serviceAccounts/110432393508830098446/keys/<id>`). The SA-key resource has **no** `displayName` of its own; parse the email from the top-level result `displayName`. SA-key resource (camelCase): `keyType`, `validAfterTime`, `validBeforeTime`, `keyAlgorithm`, `keyOrigin`.
+- camelCase is confirmed; the `// snake_case` fallbacks in Tasks 3–5 are harmless and retained defensively.
 
 ---
 
@@ -196,11 +203,15 @@ cat > /tmp/cai-apikeys.sample.json <<'JSON'
   "versionedResources":[{"resource":{"uid":"k-unrestricted","displayName":"web key","createTime":"2025-01-01T00:00:00Z"}}]},
  {"project":"projects/111","name":"projects/111/locations/global/keys/k-restricted",
   "versionedResources":[{"resource":{"uid":"k-restricted","displayName":"server key","createTime":"2025-02-01T00:00:00Z",
-    "restrictions":{"apiTargets":[{"service":"generativelanguage.googleapis.com"}]}}}]}
+    "restrictions":{"apiTargets":[{"service":"generativelanguage.googleapis.com"}]}}}]},
+ {"project":"projects/111","name":"projects/111/locations/global/keys/k-deleted",
+  "versionedResources":[{"resource":{"uid":"k-deleted","displayName":"old key","createTime":"2024-01-01T00:00:00Z","deleteTime":"2026-06-02T00:00:00Z"}}]}
 ]
 JSON
 jq --slurpfile map /tmp/map.json '
-  [ .[] | (.versionedResources[0].resource) as $r | {
+  [ .[] | (.versionedResources[0].resource) as $r
+    | select((($r.deleteTime) // "") == "")          # drop soft-deleted keys (Task 1 finding)
+    | {
       type: "api_key",
       project: (.project | sub("projects/";"") as $n | ($map[0][$n] // $n)),
       uid: ($r.uid // (.name | sub(".*/keys/";""))),
@@ -211,7 +222,7 @@ jq --slurpfile map /tmp/map.json '
   } ]' /tmp/cai-apikeys.sample.json
 ```
 
-Expected:
+Expected (the soft-deleted `k-deleted` is filtered out — the loop never lists deleted keys, so the fast path must not either):
 ```json
 [
   {"type":"api_key","project":"alpha","uid":"k-unrestricted","displayName":"web key","createTime":"2025-01-01T00:00:00Z","restrictions":null,"lastUsedAt":null},
@@ -219,16 +230,22 @@ Expected:
 ]
 ```
 
-(The unrestricted key yields `restrictions: null` → `CRITICAL` in Step E. This is the key correctness property.)
+(Two correctness properties: the unrestricted key yields `restrictions: null` → `CRITICAL` in Step E; the soft-deleted key is excluded to match `gcloud services api-keys list`.)
 
 - [ ] **Step 2: Write the verification first — SA-key mapping jq (incl. USER_MANAGED filter)**
 
 ```bash
+# NB (Task 1 finding): the SA-key `name` uses the SA's NUMERIC id; the email lives in
+# the result-level `displayName`. Parse serviceAccount from displayName, keyId from name.
 cat > /tmp/cai-sakeys.sample.json <<'JSON'
 [
- {"project":"projects/111","name":"//iam.googleapis.com/projects/alpha/serviceAccounts/svc@alpha.iam.gserviceaccount.com/keys/key-aaa",
+ {"project":"projects/111",
+  "name":"//iam.googleapis.com/projects/alpha/serviceAccounts/110432393508830098446/keys/key-aaa",
+  "displayName":"projects/alpha/serviceAccounts/svc@alpha.iam.gserviceaccount.com/keys/key-aaa",
   "versionedResources":[{"resource":{"keyType":"USER_MANAGED","validAfterTime":"2024-06-01T00:00:00Z"}}]},
- {"project":"projects/111","name":"//iam.googleapis.com/projects/alpha/serviceAccounts/svc@alpha.iam.gserviceaccount.com/keys/key-sys",
+ {"project":"projects/111",
+  "name":"//iam.googleapis.com/projects/alpha/serviceAccounts/110432393508830098446/keys/key-sys",
+  "displayName":"projects/alpha/serviceAccounts/svc@alpha.iam.gserviceaccount.com/keys/key-sys",
   "versionedResources":[{"resource":{"keyType":"SYSTEM_MANAGED","validAfterTime":"2024-01-01T00:00:00Z"}}]}
 ]
 JSON
@@ -236,18 +253,18 @@ jq --slurpfile map /tmp/map.json '
   [ .[] | . as $row | ($row.versionedResources[0].resource) as $r
     | ($r.keyType // $r.key_type) as $kt
     | select($kt == "USER_MANAGED")
-    | ($row.name | capture("serviceAccounts/(?<sa>[^/]+)/keys/(?<kid>[^/]+)$")) as $m
+    | (($row.displayName // $row.name) | capture("serviceAccounts/(?<sa>[^/]+)/keys/")) as $m
     | {
         type: "sa_key",
         project: ($row.project | sub("projects/";"") as $n | ($map[0][$n] // $n)),
-        serviceAccount: $m.sa,
-        keyId: $m.kid,
+        serviceAccount: $m.sa,                          # email — from result-level displayName
+        keyId: ($row.name | sub(".*/keys/";"")),
         createTime: ($r.validAfterTime // $r.valid_after_time),
         lastUsedAt: null
     } ]' /tmp/cai-sakeys.sample.json
 ```
 
-Expected (the SYSTEM_MANAGED key is filtered out):
+Expected (SYSTEM_MANAGED filtered out; email parsed from `displayName`, not the numeric `name`):
 ```json
 [
   {"type":"sa_key","project":"alpha","serviceAccount":"svc@alpha.iam.gserviceaccount.com","keyId":"key-aaa","createTime":"2024-06-01T00:00:00Z","lastUsedAt":null}
@@ -301,7 +318,9 @@ while read SCOPE; do
   AK="${SESSION_DIR}/raw/cai.${SAFE}.apikeys_googleapis_com_Key.json"
   SK="${SESSION_DIR}/raw/cai.${SAFE}.iam_googleapis_com_ServiceAccountKey.json"
   jq --slurpfile map "${SESSION_DIR}/projnum-to-id.json" '
-    [ .[] | (.versionedResources[0].resource) as $r | {
+    [ .[] | (.versionedResources[0].resource) as $r
+      | select((($r.deleteTime) // "") == "")          # drop soft-deleted keys (Task 1 finding)
+      | {
         type:"api_key",
         project:(.project | sub("projects/";"") as $n | ($map[0][$n] // $n)),
         uid:($r.uid // (.name | sub(".*/keys/";""))),
@@ -312,10 +331,11 @@ while read SCOPE; do
   jq --slurpfile map "${SESSION_DIR}/projnum-to-id.json" '
     [ .[] | . as $row | ($row.versionedResources[0].resource) as $r
       | ($r.keyType // $r.key_type) as $kt | select($kt=="USER_MANAGED")
-      | ($row.name | capture("serviceAccounts/(?<sa>[^/]+)/keys/(?<kid>[^/]+)$")) as $m
+      | (($row.displayName // $row.name) | capture("serviceAccounts/(?<sa>[^/]+)/keys/")) as $m
       | { type:"sa_key",
           project:($row.project | sub("projects/";"") as $n | ($map[0][$n] // $n)),
-          serviceAccount:$m.sa, keyId:$m.kid,
+          serviceAccount:$m.sa,                          # email — result-level displayName (Task 1 finding)
+          keyId:($row.name | sub(".*/keys/";"")),
           createTime:($r.validAfterTime // $r.valid_after_time),
           lastUsedAt:null } ]' "$SK" >> "${SESSION_DIR}/creds.cai.json.parts"
 done < "${SESSION_DIR}/cai-scopes.txt"
