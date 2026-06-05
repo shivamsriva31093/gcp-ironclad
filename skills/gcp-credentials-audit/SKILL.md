@@ -265,13 +265,33 @@ Treat any missing/empty Monitoring response as `lastUsedAt: null` and append a n
 Load the merged, enriched records from `creds.json`; for each, add `riskClass` + `riskReason` per the taxonomy, and assemble the final JSON in the schema documented in `output.schema.json`. Write atomically:
 
 ```bash
-jq -n --argjson creds "$CREDS_JSON" --argjson scope "$SCOPE_JSON" --argjson errs "$ERRS_JSON" '
+# Build scope from the coverage files (Tasks 2–4): scanned = CAI-covered ∪ (loop-attempted − skipped).
+USER=$(jq -r '.user // empty' "${SESSION_DIR}/scope.local.json" 2>/dev/null)
+[ -n "$USER" ] || USER=$(gcloud config get-value account 2>/dev/null)
+SKIPPED=$(cat "${SESSION_DIR}/skipped.json" 2>/dev/null || echo '[]')
+SCANNED=$(jq -n --argjson skip "$SKIPPED" \
+  --rawfile cov "${SESSION_DIR}/covered.txt" \
+  --rawfile unc "${SESSION_DIR}/uncovered.txt" '
+  (($cov/"\n") + ($unc/"\n") | map(select(length>0))) as $all
+  | ($skip | map(.projectId)) as $sk
+  | ($all - $sk) | unique')
+SCOPE_JSON=$(jq -n --arg u "$USER" --argjson scanned "$SCANNED" --argjson skipped "$SKIPPED" \
+  '{user:$u, projectsScanned:$scanned, projectsSkipped:$skipped}')
+
+# Errors: any the run collected (default none) + the CAI-fallback recommendations from Step C1.
+ERRS_JSON="${ERRS_JSON:-[]}"
+CAI_ERRS=$(jq -s '.' "${SESSION_DIR}/cai-errors.json.parts" 2>/dev/null || echo '[]')
+
+# $CREDS_JSON = the classified credential array (built above from creds.json, adding
+# riskClass + riskReason per the taxonomy table). Assemble + write atomically.
+jq -n --argjson creds "$CREDS_JSON" --argjson scope "$SCOPE_JSON" \
+      --argjson errs "$ERRS_JSON" --argjson caiErrs "$CAI_ERRS" '
 {
   schemaVersion: 1,
   generatedAt: (now | strftime("%Y-%m-%dT%H:%M:%SZ")),
   scope: $scope,
   credentials: $creds,
-  errors: $errs
+  errors: ($errs + $caiErrs)
 }' > "${SESSION_DIR}/audit.json.tmp" \
   && mv "${SESSION_DIR}/audit.json.tmp" "${SESSION_DIR}/audit.json"
 ```
