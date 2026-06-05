@@ -18,6 +18,7 @@ Walks every GCP project the caller can access, lists every API key and every use
 
 - `SESSION_DIR` env var: path to the session directory created by the driver (e.g. `/tmp/gcp-ironclad/2026-05-25T10-30-00Z/`). If invoked standalone, default to `/tmp/gcp-ironclad/standalone-$(date -u +%Y-%m-%dT%H-%M-%SZ)/`.
 - `LOOKBACK_DAYS` env var (optional): how many days back to look for last-used signal. Default `30`.
+- `AUDIT_VERIFY_PARITY` env var (optional): when `1`, also runs the per-project loop over CAI-covered projects and diffs the inventories to prove parity (see "Parity mode"). Off by default.
 
 ## Outputs
 
@@ -298,9 +299,31 @@ jq -n --argjson creds "$CREDS_JSON" --argjson scope "$SCOPE_JSON" \
 
 ### Step F: Inline summary
 
+```bash
+# Runtime self-check: the produced audit.json must match output.schema.json.
+SCHEMA=""
+for c in "skills/gcp-credentials-audit/output.schema.json" \
+         "${HOME}/.claude/skills/gcp-credentials-audit/output.schema.json"; do
+  [ -f "$c" ] && SCHEMA="$c" && break
+done
+if [ -n "$SCHEMA" ] && python3 -m jsonschema -i "${SESSION_DIR}/audit.json" "$SCHEMA" >/dev/null 2>&1; then
+  echo "audit.json: schema-valid"
+else
+  # Fallback structural check if the jsonschema CLI isn't installed.
+  jq -e '.schemaVersion==1 and (.credentials|type=="array") and (.errors|type=="array")' \
+    "${SESSION_DIR}/audit.json" >/dev/null \
+    && echo "audit.json: structural check OK (install 'jsonschema' for full validation)" \
+    || echo "audit.json: FAILED validation"
+fi
+
+CAI_N=$(sort -u "${SESSION_DIR}/covered.txt" 2>/dev/null | wc -l | tr -d ' ')
+LOOP_N=$(sort -u "${SESSION_DIR}/uncovered.txt" 2>/dev/null | wc -l | tr -d ' ')
+echo "Coverage: ${CAI_N} project(s) via CAI fast path, ${LOOP_N} via per-project fallback."
+```
+
 Print a one-paragraph summary:
 
-> Audit complete. Scanned N projects (OK accessible / S skipped). Found A API keys ({{c}} CRITICAL, {{h}} HIGH, {{m}} MEDIUM, {{l}} LOW, {{i}} INFO) and B user-managed SA keys ({{by-risk}}). Output: `${SESSION_DIR}/audit.json`.
+> Audit complete. Scanned N projects (OK accessible / S skipped). Found A API keys ({{c}} CRITICAL, {{h}} HIGH, {{m}} MEDIUM, {{l}} LOW, {{i}} INFO) and B user-managed SA keys ({{by-risk}}). Output: `${SESSION_DIR}/audit.json`, and the CAI-vs-loop coverage split.
 
 ## Error handling
 
