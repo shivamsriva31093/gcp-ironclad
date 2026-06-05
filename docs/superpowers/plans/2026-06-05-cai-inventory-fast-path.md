@@ -381,11 +381,7 @@ Change `### Step C: Inventory each project` to `### Step C2: Per-project fallbac
 
 In the loop's `done < "${SESSION_DIR}/projects.txt"` line, change the input to `done < "${SESSION_DIR}/uncovered.txt"`.
 
-Also make the existing `PERMISSION_DENIED` handling write a file (Task 6 reads it): where the loop records a skipped project, append `{"projectId":"$P","reason":"no_access"}` to `${SESSION_DIR}/skipped.json.parts`, and after the loop add:
-```bash
-jq -s '.' "${SESSION_DIR}/skipped.json.parts" > "${SESSION_DIR}/skipped.json" 2>/dev/null \
-  || echo '[]' > "${SESSION_DIR}/skipped.json"
-```
+(Skipped-project detection is added in Step 3's post-loop block, which scans the loop's `.err` files — the original loop has no explicit skip-tracking code.)
 
 - [ ] **Step 2: Append the loop→record assembly (verification first)**
 
@@ -409,9 +405,20 @@ After the `done < "${SESSION_DIR}/uncovered.txt"` block, add:
 
 ````markdown
 ```bash
-# Assemble loop raw files into the unified record shape (same as creds.cai.json).
+# Assemble loop raw files into the unified record shape (same as creds.cai.json),
+# and record genuinely-unreadable projects (no_access) for scope.projectsSkipped.
+# NB: the loop already passed --managed-by=user to `keys list`, so its SA-key files
+# are user-managed only — do NOT re-filter on keyType here (the field may be absent
+# and would wrongly drop every key).
 : > "${SESSION_DIR}/creds.loop.json.parts"
+: > "${SESSION_DIR}/skipped.json.parts"
 while read P; do
+  [ -n "$P" ] || continue
+  # no_access = couldn't even list service accounts (a core, always-enabled API)
+  if grep -qi "PERMISSION_DENIED" "${SESSION_DIR}/raw/${P}.sas.err" 2>/dev/null \
+     && ! jq -e 'length>0' "${SESSION_DIR}/raw/${P}.sas.json" >/dev/null 2>&1; then
+    jq -nc --arg p "$P" '{projectId:$p, reason:"no_access"}' >> "${SESSION_DIR}/skipped.json.parts"
+  fi
   for KF in "${SESSION_DIR}"/raw/"${P}".key.*.json; do
     [ -e "$KF" ] || continue
     jq --arg p "$P" '[{type:"api_key",project:$p,uid:.uid,
@@ -421,16 +428,17 @@ while read P; do
   done
   for SF in "${SESSION_DIR}"/raw/"${P}".sakeys.*.json; do
     [ -e "$SF" ] || continue
-    jq --arg p "$P" '[ .[] | select((.keyType//.key_type)=="USER_MANAGED")
-      | {type:"sa_key",project:$p,
+    jq --arg p "$P" '[ .[] | {type:"sa_key",project:$p,
          serviceAccount:(.name|capture("serviceAccounts/(?<sa>[^/]+)/keys/")|.sa),
          keyId:(.name|sub(".*/keys/";"")),
          createTime:(.validAfterTime//.valid_after_time),lastUsedAt:null} ]' "$SF" \
       >> "${SESSION_DIR}/creds.loop.json.parts"
   done
 done < "${SESSION_DIR}/uncovered.txt"
-jq -s 'add // []' "${SESSION_DIR}/creds.loop.json.parts" > "${SESSION_DIR}/creds.loop.json" 2>/dev/null \
+jq -s 'add // []' "${SESSION_DIR}/creds.loop.json.parts" > "${SESSION_DIR}/creds.loop.json" \
   || echo '[]' > "${SESSION_DIR}/creds.loop.json"
+jq -s '.' "${SESSION_DIR}/skipped.json.parts" > "${SESSION_DIR}/skipped.json" \
+  || echo '[]' > "${SESSION_DIR}/skipped.json"
 ```
 ````
 
@@ -563,6 +571,7 @@ In Step E's `jq -n … '{schemaVersion…, errors:$errs}'`, build `$errs` to inc
 ````markdown
 ```bash
 CAI_ERRS=$(jq -s '.' "${SESSION_DIR}/cai-errors.json.parts" 2>/dev/null || echo '[]')
+ERRS_JSON="${ERRS_JSON:-[]}"   # any non-fatal errors the run collected (Monitoring failures, etc.); default none
 jq -n --argjson creds "$CREDS_JSON" --argjson scope "$SCOPE_JSON" \
       --argjson errs "$ERRS_JSON" --argjson caiErrs "$CAI_ERRS" '
 {
