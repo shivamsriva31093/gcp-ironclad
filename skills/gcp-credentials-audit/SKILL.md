@@ -216,7 +216,7 @@ jq -s '.' "${SESSION_DIR}/skipped.json.parts" > "${SESSION_DIR}/skipped.json" \
 
 ### Step D: Best-effort last-used signal per API key
 
-For each API key UID, query Cloud Monitoring metric `serviceruntime.googleapis.com/api/request_count` filtered by `credential_id = apikey:<UID>` over the last `LOOKBACK_DAYS` days. If the response contains any non-zero points, set `lastUsedAt` to the latest point's timestamp; otherwise `null`.
+For every project that holds API keys, issue ONE Cloud Monitoring `timeSeries.list` query for `serviceruntime.googleapis.com/api/request_count` grouped by `credential_id` over the last `LOOKBACK_DAYS` days; set each API key's `lastUsedAt` to its latest non-zero point (else `null`). SA-key last-used is not tracked by this metric and stays `null`.
 
 ```bash
 TOKEN=$(gcloud auth application-default print-access-token)
@@ -225,21 +225,44 @@ START=$(date -u -v-${LOOKBACK_DAYS}d +%Y-%m-%dT00:00:00Z 2>/dev/null \
         || date -u -d "${LOOKBACK_DAYS} days ago" +%Y-%m-%dT00:00:00Z)
 END=$(date -u +%Y-%m-%dT00:00:00Z)
 
-# For each api-key UID in each project:
-#   curl ... monitoring.googleapis.com/v3/projects/$P/timeSeries
-#     filter: metric.type="serviceruntime.googleapis.com/api/request_count"
-#             AND metric.label.credential_id="apikey:$uid"
-#     interval.startTime=$START interval.endTime=$END
-#     aggregation.alignmentPeriod=86400s
-#     aggregation.perSeriesAligner=ALIGN_SUM
-#   → parse the latest point with value > 0 from response.timeSeries[].points
+# Merge both inventory paths first (Step E consumes creds.json).
+jq -s 'add // []' "${SESSION_DIR}/creds.cai.json" "${SESSION_DIR}/creds.loop.json" \
+  > "${SESSION_DIR}/creds.json"
+
+# One Monitoring query per project holding api_key credentials; group by credential_id.
+echo '{}' > "${SESSION_DIR}/lastused.json"
+for P in $(jq -r '[.[]|select(.type=="api_key")|.project]|unique[]' "${SESSION_DIR}/creds.json"); do
+  RESP=$(curl -s -G "https://monitoring.googleapis.com/v3/projects/${P}/timeSeries" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    --data-urlencode 'filter=metric.type="serviceruntime.googleapis.com/api/request_count"' \
+    --data-urlencode "interval.startTime=${START}" \
+    --data-urlencode "interval.endTime=${END}" \
+    --data-urlencode 'aggregation.alignmentPeriod=86400s' \
+    --data-urlencode 'aggregation.perSeriesAligner=ALIGN_SUM' \
+    --data-urlencode 'aggregation.groupByFields=metric.label.credential_id' 2>/dev/null)
+  echo "$RESP" | jq '[ .timeSeries[]?
+        | { cid:.metric.labels.credential_id,
+            last:([ .points[]? | select(((.value.int64Value // .value.doubleValue // 0)|tonumber)>0)
+                    | .interval.endTime ]|sort|last) }
+        | select(.last!=null) ] | map({(.cid):.last}) | add // {}' \
+    > "${SESSION_DIR}/lastused.${P}.json" 2>/dev/null || echo '{}' > "${SESSION_DIR}/lastused.${P}.json"
+  jq -s '.[0]*.[1]' "${SESSION_DIR}/lastused.json" "${SESSION_DIR}/lastused.${P}.json" \
+    > "${SESSION_DIR}/lastused.tmp" && mv "${SESSION_DIR}/lastused.tmp" "${SESSION_DIR}/lastused.json"
+done
+
+# Join: api_key.lastUsedAt = lastused["apikey:"+uid]; sa_key stays null (unchanged behaviour).
+jq --slurpfile lu "${SESSION_DIR}/lastused.json" '
+  [ .[] | if .type=="api_key"
+          then .lastUsedAt = ($lu[0]["apikey:" + .uid] // null)
+          else . end ]' "${SESSION_DIR}/creds.json" > "${SESSION_DIR}/creds.enriched.json"
+mv "${SESSION_DIR}/creds.enriched.json" "${SESSION_DIR}/creds.json"
 ```
 
-Treat missing responses (Monitoring API disabled, no data, etc.) as `lastUsedAt: null`. Record any non-trivial error in `errors[]`.
+Treat any missing/empty Monitoring response as `lastUsedAt: null` and append a non-fatal entry to `errors[]`.
 
 ### Step E: Classify and write `audit.json`
 
-For each credential, apply the risk taxonomy and assemble the final JSON in the schema documented in `output.schema.json`. Write atomically:
+Load the merged, enriched records from `creds.json`; for each, add `riskClass` + `riskReason` per the taxonomy, and assemble the final JSON in the schema documented in `output.schema.json`. Write atomically:
 
 ```bash
 jq -n --argjson creds "$CREDS_JSON" --argjson scope "$SCOPE_JSON" --argjson errs "$ERRS_JSON" '
