@@ -71,6 +71,76 @@ jq -r '.projects[] | select(.parent|not) | .projectId' \
 echo "projects=$(wc -l < "${SESSION_DIR}/projects.txt") scopes=$(wc -l < "${SESSION_DIR}/cai-scopes.txt") standalone=$(wc -l < "${SESSION_DIR}/uncovered.txt")"
 ```
 
+### Step C1: CAI fast path (per scope)
+
+For each scope in `cai-scopes.txt`, query the two asset types. A scope that returns cleanly means **every project under it is covered**; a scope that errors sends its projects to the fallback (Step C2) and emits a recommendation.
+
+```bash
+: > "${SESSION_DIR}/creds.cai.json.parts"
+: > "${SESSION_DIR}/covered.txt"
+: > "${SESSION_DIR}/cai-errors.json.parts"
+while read SCOPE; do
+  SAFE=$(echo "$SCOPE" | tr '/' '_')
+  ok=1
+  for TYPE in apikeys.googleapis.com/Key iam.googleapis.com/ServiceAccountKey; do
+    OUT="${SESSION_DIR}/raw/cai.${SAFE}.$(echo "$TYPE" | tr '/.' '__').json"
+    if ! gcloud asset search-all-resources --scope="$SCOPE" \
+          --asset-types="$TYPE" --read-mask='*' --format=json \
+          > "$OUT" 2>"${OUT}.err"; then
+      ok=0; break
+    fi
+  done
+
+  if [ "$ok" = 0 ]; then
+    # Scope failed — fall back for its projects, recommend the unlock (READ-ONLY: we never enable).
+    REASON=$(tr -d '\n' < "${OUT}.err" | sed 's/"/'"'"'/g' | cut -c1-300)
+    jq -r --arg s "$SCOPE" '.projects[] | select(.parent) | select(("\(.parent.type)s/\(.parent.id)")==$s) | .projectId' \
+      "${SESSION_DIR}/scope.local.json" >> "${SESSION_DIR}/uncovered.txt"
+    jq -nc --arg s "$SCOPE" --arg r "$REASON" \
+      '{context:"cai_fallback", message:("CAI query failed for \($s): \($r). Falling back to the per-project loop for its projects. To enable the fast path next run: (1) gcloud services enable cloudasset.googleapis.com --project=<quota-project> ; (2) grant your account roles/cloudasset.viewer on \($s).")}' \
+      >> "${SESSION_DIR}/cai-errors.json.parts"
+    continue
+  fi
+
+  # Scope OK — mark its projects covered (complete picture, even if zero keys).
+  jq -r --arg s "$SCOPE" '.projects[] | select(.parent) | select(("\(.parent.type)s/\(.parent.id)")==$s) | .projectId' \
+    "${SESSION_DIR}/scope.local.json" >> "${SESSION_DIR}/covered.txt"
+
+  AK="${SESSION_DIR}/raw/cai.${SAFE}.apikeys_googleapis_com_Key.json"
+  SK="${SESSION_DIR}/raw/cai.${SAFE}.iam_googleapis_com_ServiceAccountKey.json"
+  jq --slurpfile map "${SESSION_DIR}/projnum-to-id.json" '
+    [ .[] | (.versionedResources[0].resource) as $r
+      | select((($r.deleteTime) // "") == "")          # drop soft-deleted keys (Task 1 finding)
+      | {
+        type:"api_key",
+        project:(.project | sub("projects/";"") as $n | ($map[0][$n] // $n)),
+        uid:($r.uid // (.name | sub(".*/keys/";""))),
+        displayName:($r.displayName // .displayName // ""),
+        createTime:($r.createTime // $r.create_time),
+        restrictions:($r.restrictions // null),
+        lastUsedAt:null } ]' "$AK" >> "${SESSION_DIR}/creds.cai.json.parts"
+  jq --slurpfile map "${SESSION_DIR}/projnum-to-id.json" '
+    [ .[] | . as $row | ($row.versionedResources[0].resource) as $r
+      | ($r.keyType // $r.key_type) as $kt | select($kt=="USER_MANAGED")
+      | (($row.displayName // $row.name) | capture("serviceAccounts/(?<sa>[^/]+)/keys/")) as $m
+      | { type:"sa_key",
+          project:($row.project | sub("projects/";"") as $n | ($map[0][$n] // $n)),
+          serviceAccount:$m.sa,                          # email — result-level displayName (Task 1 finding)
+          keyId:($row.name | sub(".*/keys/";"")),
+          createTime:($r.validAfterTime // $r.valid_after_time),
+          lastUsedAt:null } ]' "$SK" >> "${SESSION_DIR}/creds.cai.json.parts"
+done < "${SESSION_DIR}/cai-scopes.txt"
+
+# Flatten + dedupe (uid for keys, project+serviceAccount+keyId for SA keys) in case scopes overlap.
+jq -s 'add // [] | unique_by(.uid // "\(.project)/\(.serviceAccount)/\(.keyId)")' \
+  "${SESSION_DIR}/creds.cai.json.parts" > "${SESSION_DIR}/creds.cai.json" 2>/dev/null || echo '[]' > "${SESSION_DIR}/creds.cai.json"
+# De-dupe uncovered (a project listed standalone won't also be covered, but guard anyway).
+sort -u "${SESSION_DIR}/uncovered.txt" -o "${SESSION_DIR}/uncovered.txt"
+echo "cai_credentials=$(jq length "${SESSION_DIR}/creds.cai.json") covered_projects=$(sort -u "${SESSION_DIR}/covered.txt" 2>/dev/null | wc -l)"
+```
+
+**Resilience:** the live probe confirmed `restrictions` (keys) and `keyType`/`validAfterTime` (SA keys) are present in `versionedResources`, so the `--read-mask='*'` fast form above is the path used. Kept as a defensive note: if for some asset type/org those fields are ever absent, swap that one query for `gcloud asset list --<organization|folder|project>=<id> --content-type=resource --asset-types="$TYPE" --format=json` and read the resource from `.[].resource.data` instead of `.versionedResources[0].resource`.
+
 ### Step C: Inventory each project
 
 For each `$P` in `projects.txt`:
