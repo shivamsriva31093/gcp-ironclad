@@ -145,9 +145,9 @@ echo "cai_credentials=$(jq length "${SESSION_DIR}/creds.cai.json") covered_proje
 
 **Resilience:** the live probe confirmed `restrictions` (keys) and `keyType`/`validAfterTime` (SA keys) are present in `versionedResources`, so the `--read-mask='*'` fast form above is the path used. Kept as a defensive note: if for some asset type/org those fields are ever absent, swap that one query for `gcloud asset list --<organization|folder|project>=<id> --content-type=resource --asset-types="$TYPE" --format=json` and read the resource from `.[].resource.data` instead of `.versionedResources[0].resource`.
 
-### Step C: Inventory each project
+### Step C2: Per-project fallback (uncovered projects)
 
-For each `$P` in `projects.txt`:
+For each `$P` in `uncovered.txt` (standalone projects + any scope CAI couldn't read), run the original per-project inventory. This path is unchanged and READ-ONLY.
 
 ```bash
 while read P; do
@@ -172,10 +172,47 @@ while read P; do
         > "${SESSION_DIR}/raw/${P}.sakeys.${sa}.json" 2>/dev/null
     done
   fi
-done < "${SESSION_DIR}/projects.txt"
+done < "${SESSION_DIR}/uncovered.txt"
 ```
 
 If a project errors with `PERMISSION_DENIED` or `API has not been used`, record it in `projectsSkipped` with the reason and move on.
+
+```bash
+# Assemble loop raw files into the unified record shape (same as creds.cai.json),
+# and record genuinely-unreadable projects (no_access) for scope.projectsSkipped.
+# NB: the loop already passed --managed-by=user to `keys list`, so its SA-key files
+# are user-managed only — do NOT re-filter on keyType here (the field may be absent
+# and would wrongly drop every key).
+: > "${SESSION_DIR}/creds.loop.json.parts"
+: > "${SESSION_DIR}/skipped.json.parts"
+while read P; do
+  [ -n "$P" ] || continue
+  # no_access = couldn't even list service accounts (a core, always-enabled API)
+  if grep -qi "PERMISSION_DENIED" "${SESSION_DIR}/raw/${P}.sas.err" 2>/dev/null \
+     && ! jq -e 'length>0' "${SESSION_DIR}/raw/${P}.sas.json" >/dev/null 2>&1; then
+    jq -nc --arg p "$P" '{projectId:$p, reason:"no_access"}' >> "${SESSION_DIR}/skipped.json.parts"
+  fi
+  for KF in "${SESSION_DIR}"/raw/"${P}".key.*.json; do
+    [ -e "$KF" ] || continue
+    jq --arg p "$P" '[{type:"api_key",project:$p,uid:.uid,
+      displayName:(.displayName//""),createTime:.createTime,
+      restrictions:(.restrictions//null),lastUsedAt:null}]' "$KF" \
+      >> "${SESSION_DIR}/creds.loop.json.parts"
+  done
+  for SF in "${SESSION_DIR}"/raw/"${P}".sakeys.*.json; do
+    [ -e "$SF" ] || continue
+    jq --arg p "$P" '[ .[] | {type:"sa_key",project:$p,
+         serviceAccount:(.name|capture("serviceAccounts/(?<sa>[^/]+)/keys/")|.sa),
+         keyId:(.name|sub(".*/keys/";"")),
+         createTime:(.validAfterTime//.valid_after_time),lastUsedAt:null} ]' "$SF" \
+      >> "${SESSION_DIR}/creds.loop.json.parts"
+  done
+done < "${SESSION_DIR}/uncovered.txt"
+jq -s 'add // []' "${SESSION_DIR}/creds.loop.json.parts" > "${SESSION_DIR}/creds.loop.json" \
+  || echo '[]' > "${SESSION_DIR}/creds.loop.json"
+jq -s '.' "${SESSION_DIR}/skipped.json.parts" > "${SESSION_DIR}/skipped.json" \
+  || echo '[]' > "${SESSION_DIR}/skipped.json"
+```
 
 ### Step D: Best-effort last-used signal per API key
 
