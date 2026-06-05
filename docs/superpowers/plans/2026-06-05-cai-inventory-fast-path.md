@@ -306,7 +306,7 @@ while read SCOPE; do
     jq -r --arg s "$SCOPE" '.projects[] | select(.parent) | select(("\(.parent.type)s/\(.parent.id)")==$s) | .projectId' \
       "${SESSION_DIR}/scope.local.json" >> "${SESSION_DIR}/uncovered.txt"
     jq -nc --arg s "$SCOPE" --arg r "$REASON" \
-      '{context:"cai_fallback", message:("CAI query failed for \($s): \($r). Falling back to per-project loop for its projects. To enable the fast path: gcloud services enable cloudasset.googleapis.com --project=<quota-project> ; gcloud \($s|split("/")[0]) add-iam-policy-binding \($s|split("/")[1]) --member=user:<you> --role=roles/cloudasset.viewer")}' \
+      '{context:"cai_fallback", message:("CAI query failed for \($s): \($r). Falling back to the per-project loop for its projects. To enable the fast path next run: (1) gcloud services enable cloudasset.googleapis.com --project=<quota-project> ; (2) grant your account roles/cloudasset.viewer on \($s).")}' \
       >> "${SESSION_DIR}/cai-errors.json.parts"
     continue
   fi
@@ -341,8 +341,12 @@ while read SCOPE; do
 done < "${SESSION_DIR}/cai-scopes.txt"
 
 # Flatten + dedupe (uid for keys, project+serviceAccount+keyId for SA keys) in case scopes overlap.
+# stderr is intentionally NOT suppressed: a parse failure here would otherwise silently
+# yield zero CAI credentials — a dangerous false-clean for a security audit.
 jq -s 'add // [] | unique_by(.uid // "\(.project)/\(.serviceAccount)/\(.keyId)")' \
-  "${SESSION_DIR}/creds.cai.json.parts" > "${SESSION_DIR}/creds.cai.json" 2>/dev/null || echo '[]' > "${SESSION_DIR}/creds.cai.json"
+  "${SESSION_DIR}/creds.cai.json.parts" > "${SESSION_DIR}/creds.cai.json" \
+  || { echo "WARN: could not parse creds.cai.json.parts; writing empty CAI set" >&2; \
+       echo '[]' > "${SESSION_DIR}/creds.cai.json"; }
 # De-dupe uncovered (a project listed standalone won't also be covered, but guard anyway).
 sort -u "${SESSION_DIR}/uncovered.txt" -o "${SESSION_DIR}/uncovered.txt"
 echo "cai_credentials=$(jq length "${SESSION_DIR}/creds.cai.json") covered_projects=$(sort -u "${SESSION_DIR}/covered.txt" 2>/dev/null | wc -l)"
