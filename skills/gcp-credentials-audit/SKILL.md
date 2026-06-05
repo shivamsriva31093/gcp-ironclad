@@ -43,15 +43,32 @@ mkdir -p "${SESSION_DIR}/raw"
 echo "SESSION_DIR=${SESSION_DIR}"
 ```
 
-### Step B: Discover projects (or read from driver-provided scope)
+### Step B: Discover projects (from driver scope or standalone), then derive the CAI query scopes and the number→id map.
 
 ```bash
+# Project list (from driver scope, or discover standalone)
 if [ -f "${SESSION_DIR}/scope.json" ]; then
-  jq -r '.projects[].projectId' "${SESSION_DIR}/scope.json" > "${SESSION_DIR}/projects.txt"
+  cp "${SESSION_DIR}/scope.json" "${SESSION_DIR}/scope.local.json"
 else
-  gcloud projects list --format='value(projectId)' > "${SESSION_DIR}/projects.txt"
+  gcloud projects list --format=json > "${SESSION_DIR}/raw-projects.json"
+  jq -n --slurpfile p "${SESSION_DIR}/raw-projects.json" '{projects:$p[0]}' \
+    > "${SESSION_DIR}/scope.local.json"
 fi
-wc -l "${SESSION_DIR}/projects.txt"
+jq -r '.projects[].projectId' "${SESSION_DIR}/scope.local.json" > "${SESSION_DIR}/projects.txt"
+
+# Derivations for the CAI fast path:
+#  - projnum-to-id.json : project NUMBER -> projectId (CAI returns numbers)
+#  - cai-scopes.txt     : distinct org/folder scopes to query
+#  - uncovered.txt      : starts with parent-less (standalone) projects; the
+#                         fast path appends projects whose scope query failed
+jq '[.projects[] | select(.projectNumber) | {(.projectNumber): .projectId}] | add // {}' \
+  "${SESSION_DIR}/scope.local.json" > "${SESSION_DIR}/projnum-to-id.json"
+jq -r '.projects[] | select(.parent) | "\(.parent.type)s/\(.parent.id)"' \
+  "${SESSION_DIR}/scope.local.json" | sort -u > "${SESSION_DIR}/cai-scopes.txt"
+jq -r '.projects[] | select(.parent|not) | .projectId' \
+  "${SESSION_DIR}/scope.local.json" > "${SESSION_DIR}/uncovered.txt"
+
+echo "projects=$(wc -l < "${SESSION_DIR}/projects.txt") scopes=$(wc -l < "${SESSION_DIR}/cai-scopes.txt") standalone=$(wc -l < "${SESSION_DIR}/uncovered.txt")"
 ```
 
 ### Step C: Inventory each project
