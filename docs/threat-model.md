@@ -45,6 +45,7 @@ State explicitly what `gcp-ironclad` does and does *not* protect against, what i
 │    IAM, billing APIs            │
 │    BigQuery (billing export)    │
 │    Cloud Monitoring             │
+│    Cloud Asset Inventory (RO)   │
 └─────────────────────────────────┘
 ```
 
@@ -66,6 +67,7 @@ The MCP server is the most consequential trust boundary in this picture because:
 | Quota cap below current usage | Quota sizing is `max(peak_30d × 5, floor)` — strictly above the observed peak unless the peak itself is an abuse signature, in which case the floor is used. |
 | Disabling an API in active use | API-disable gates on zero usage in the last 30 days **and** API enabled `>7` days ago **and** project not `sys-*`. |
 | Privilege creep | All actions inherit the calling identity's permissions; no `--impersonate` or sudo escalation inside the skills. |
+| Over-broad access for the CAI fast path | CAI access is **read-only** and needs only `roles/cloudasset.viewer` at the org/folder; the audit never enables the API or modifies IAM — missing access degrades to the per-project loop, it does not escalate. |
 | Event-loop blocking from long BQ queries | BigQuery tool functions are `async def` and run their blocking GCP-SDK calls via `asyncio.to_thread`. |
 
 ## Known limitations
@@ -74,7 +76,7 @@ The MCP server is the most consequential trust boundary in this picture because:
 |---|---|
 | No supply-chain lockfile shipped | Adds maintenance burden; users who care can `pip freeze` post-install. |
 | No `bandit` / `semgrep` in CI yet | Coming in a follow-up release. |
-| Cross-org operation unsupported | Out of v1 scope; PR welcome. |
+| Cross-org *apply* unsupported | The audit inventory now reads across orgs/folders via Cloud Asset Inventory; the APPLY phases (guardrails, key-restrictions) remain per-project. |
 | Local-codebase / git-history secret scanning | Out of v1 scope; PR welcome. |
 | Audit report may contain identifiers | Documented in the report footer; users must redact before sharing. |
 | No platform-side fraud-detection integration | GCP does not expose one that can be subscribed to. |

@@ -98,6 +98,10 @@ Phase 4 — Consolidate (driver)
 
 The JSON files in `/tmp/gcp-ironclad/<ts>/` are the contract between sub-skills — which is what lets sub-skills run independently *or* via the driver. Each sub-skill has an `output.schema.json` documenting its contract.
 
+### Inventory fast-path (Cloud Asset Inventory)
+
+`gcp-credentials-audit` inventories keys via org/folder-scoped Cloud Asset Inventory (`apikeys.googleapis.com/Key`, `iam.googleapis.com/ServiceAccountKey`) when `cloudasset.googleapis.com` is enabled and the caller has `roles/cloudasset.viewer` on the scope — collapsing the per-project loop into a few queries across many projects. Projects not covered by a successful CAI query (standalone projects, or scopes the caller can't read) transparently fall back to the per-project loop. The audit never enables CAI itself (READ-ONLY); when CAI is absent it completes via the loop and emits the exact `gcloud services enable …` / grant-`roles/cloudasset.viewer` commands to unlock the fast path next run. SA keys reported by CAI are filtered to `USER_MANAGED`, and soft-deleted API keys (within CAI's purge window) are excluded so the fast path matches the loop exactly.
+
 ## Auto-apply safety matrix
 
 Every applied action has a *precondition* that makes it genuinely side-effect-free. If the precondition isn't met, it's demoted to "flag for review."
@@ -147,6 +151,7 @@ A markdown + JSON file at `~/.claude/reports/gcp-ironclad-<ts>.{md,json}`. Secti
 | ADC auth expired | Phase 0 fails clean with the `gcloud auth application-default login` instruction. |
 | `gcp-finops` MCP unavailable | Anomaly scan falls back to direct `bq query`. If billing export is missing for an account, an `info` finding is emitted and the run continues. |
 | Caller has no access to a project | Skipped; recorded in `scope.json.projectsSkipped[]`. |
+| CAI not enabled / no `cloudasset.viewer` on a scope | That scope's projects fall back to the per-project loop; a recommendation with the exact enable/grant commands is added to `errors[]`. The audit never enables CAI itself. |
 | Project has no usage data | Skip auto-quota and auto-restriction for it; emit `flag for review`. |
 | Caller is not `billing.admin` on an account | Budget creation skipped; flagged. |
 | Peak in usage data has an abuse signature | Use floor for quota sizing; don't size *from* a peak that is itself abuse. |
@@ -168,5 +173,4 @@ See [`threat-model.md`](threat-model.md) for what the suite does and does *not* 
 - Secret-Manager migration helper.
 - Org-policy enforcement (`apikeys.googleapis.com/allowedRestrictions`) to prevent unrestricted keys at creation time.
 - Continuous monitoring via scheduled Cloud Run.
-- Cross-org / multi-tenant operation.
 - Auto-deletion of any credential.
