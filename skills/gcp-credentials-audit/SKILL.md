@@ -94,7 +94,7 @@ while read SCOPE; do
 
   if [ "$ok" = 0 ]; then
     # Scope failed — fall back for its projects, recommend the unlock (READ-ONLY: we never enable).
-    REASON=$(tr -d '\n' < "${OUT}.err" | sed 's/"/'"'"'/g' | cut -c1-300)
+    REASON=$(tr -d '\n' < "${OUT}.err" | cut -c1-300)
     jq -r --arg s "$SCOPE" '.projects[] | select(.parent) | select(("\(.parent.type)s/\(.parent.id)")==$s) | .projectId' \
       "${SESSION_DIR}/scope.local.json" >> "${SESSION_DIR}/uncovered.txt"
     jq -nc --arg s "$SCOPE" --arg r "$REASON" \
@@ -123,10 +123,10 @@ while read SCOPE; do
   jq --slurpfile map "${SESSION_DIR}/projnum-to-id.json" '
     [ .[] | . as $row | ($row.versionedResources[0].resource) as $r
       | ($r.keyType // $r.key_type) as $kt | select($kt=="USER_MANAGED")
-      | (($row.displayName // $row.name) | capture("serviceAccounts/(?<sa>[^/]+)/keys/")) as $m
+      | (($row.displayName // $row.name) | capture("serviceAccounts/(?<sa>[^/]+)/keys/")?) as $m
       | { type:"sa_key",
           project:($row.project | sub("projects/";"") as $n | ($map[0][$n] // $n)),
-          serviceAccount:$m.sa,                          # email — result-level displayName (Task 1 finding)
+          serviceAccount:($m.sa // "UNPARSED"),          # email from result-level displayName; never silently drop/null on a malformed name
           keyId:($row.name | sub(".*/keys/";"")),
           createTime:($r.validAfterTime // $r.valid_after_time),
           lastUsedAt:null } ]' "$SK" >> "${SESSION_DIR}/creds.cai.json.parts"
@@ -203,7 +203,7 @@ while read P; do
   for SF in "${SESSION_DIR}"/raw/"${P}".sakeys.*.json; do
     [ -e "$SF" ] || continue
     jq --arg p "$P" '[ .[] | {type:"sa_key",project:$p,
-         serviceAccount:(.name|capture("serviceAccounts/(?<sa>[^/]+)/keys/")|.sa),
+         serviceAccount:((.name|capture("serviceAccounts/(?<sa>[^/]+)/keys/")?).sa // "UNPARSED"),
          keyId:(.name|sub(".*/keys/";"")),
          createTime:(.validAfterTime//.valid_after_time),lastUsedAt:null} ]' "$SF" \
       >> "${SESSION_DIR}/creds.loop.json.parts"
@@ -263,7 +263,7 @@ Treat any missing/empty Monitoring response as `lastUsedAt: null` and append a n
 
 ### Step E: Classify and write `audit.json`
 
-Load the merged, enriched records from `creds.json`; for each, add `riskClass` + `riskReason` per the taxonomy, and assemble the final JSON in the schema documented in `output.schema.json`. Write atomically:
+Load the merged, enriched records from `creds.json`; for each, add `riskClass` + `riskReason` per the taxonomy table above, and **set the shell variable `CREDS_JSON`** to that classified JSON array (the bash block below references `$CREDS_JSON`). Then assemble the final JSON in the schema documented in `output.schema.json` and write atomically:
 
 ```bash
 # Build scope from the coverage files (Tasks 2–4): scanned = CAI-covered ∪ (loop-attempted − skipped).
