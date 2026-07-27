@@ -12,7 +12,7 @@ ALL_TEMPLATES = sorted(TEMPLATES.glob("**/*.template.md"))
 
 
 def test_templates_exist():
-    assert len(ALL_TEMPLATES) >= 2  # grows to 8 by Task 6
+    assert len(ALL_TEMPLATES) == 8  # evidence-summary, packet-README, 2 google, 3 india, 1 us
 
 
 @pytest.mark.parametrize("tpl", ALL_TEMPLATES, ids=lambda p: str(p.relative_to(TEMPLATES)))

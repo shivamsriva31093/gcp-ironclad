@@ -47,6 +47,7 @@ def main() -> int:
     hourly = defaultdict(float)         # incident: hour-ts -> cost
     sku_cost = defaultdict(float)       # incident: sku -> cost
     services, currencies = set(), set()
+    baseline_currencies = set()
     incident_total = 0.0
 
     with Path(args.csv).open() as f:
@@ -55,6 +56,7 @@ def main() -> int:
             cost = float(row["cost"])
             if b_start <= ts < b_end:
                 daily[ts.date().isoformat()] += cost
+                baseline_currencies.add(row["currency"])
             if i_start <= ts < i_end:
                 incident_total += cost
                 hour = ts.replace(minute=0, second=0, microsecond=0)
@@ -68,6 +70,16 @@ def main() -> int:
         return 2
     if not hourly:
         print("no rows in incident window", file=sys.stderr)
+        return 2
+
+    all_currencies = currencies | baseline_currencies
+    if len(all_currencies) > 1:
+        print(
+            "multiple currencies present in scope "
+            f"({', '.join(sorted(all_currencies))}); normalize the billing "
+            "CSV to a single currency before analysis",
+            file=sys.stderr,
+        )
         return 2
 
     baseline_median = statistics.median(daily.values())

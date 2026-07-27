@@ -97,14 +97,30 @@ GROUP BY 1,2,3,5 ORDER BY 1' > "${SESSION_DIR}/raw/billing-normalized.csv"
 
 **1b. Billing CSV (fallback).** Have the victim download the cost table CSV (Console → Billing → Reports → filter to the baseline+incident date range → Download CSV). Then **normalize it yourself** to the canonical header `usage_start_time,service,sku,cost,currency` (map/rename columns, ISO-ify dates; daily granularity is acceptable — peak-hour metrics will then be unavailable and must be marked as such). Save as `${SESSION_DIR}/raw/billing-normalized.csv`.
 
-**1c. Per-key attribution (Cloud Monitoring).**
+**1c. Per-key attribution (Cloud Monitoring).** The gcloud CLI has no
+time-series listing command for this — query the Cloud Monitoring API v3
+directly (house pattern, same as `gcp-credentials-audit`'s Step D), grouped by
+`credential_id` so cost/request volume can be attributed to the abused key:
 
 ```bash
+TOKEN=$(gcloud auth application-default print-access-token)
 for P in $(echo "$PROJECT_IDS" | tr ',' ' '); do
-  gcloud monitoring time-series list --project="$P" \
-    --filter='metric.type="serviceruntime.googleapis.com/api/request_count"' \
-    --interval-start-time="INCIDENT_START" --interval-end-time="INCIDENT_END" \
-    --format=json > "${SESSION_DIR}/raw/request-count-${P}.json" || echo "monitoring unavailable for $P"
+  RESP=$(curl -s -G "https://monitoring.googleapis.com/v3/projects/${P}/timeSeries" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    --data-urlencode 'filter=metric.type="serviceruntime.googleapis.com/api/request_count"' \
+    --data-urlencode "interval.startTime=INCIDENT_START" \
+    --data-urlencode "interval.endTime=INCIDENT_END" \
+    --data-urlencode 'aggregation.alignmentPeriod=3600s' \
+    --data-urlencode 'aggregation.perSeriesAligner=ALIGN_SUM' \
+    --data-urlencode 'aggregation.groupByFields=metric.label.credential_id')
+  CURL_RC=$?
+  if [ $CURL_RC -ne 0 ]; then
+    echo "monitoring unavailable for $P: curl exit ${CURL_RC}" >&2
+  elif echo "$RESP" | jq -e '.error' >/dev/null 2>&1; then
+    echo "monitoring unavailable for $P: $(echo "$RESP" | jq -r '.error.message // .error')" >&2
+  else
+    echo "$RESP" > "${SESSION_DIR}/raw/request-count-${P}.json"
+  fi
 done
 ```
 
@@ -169,19 +185,29 @@ availability, letters emitted, exhibits with `producedBy`, gaps with manual
 actions). Validate — house pattern, jsonschema with jq structural fallback:
 
 ```bash
-python3 - <<EOF || jq -e '.schemaVersion==1 and .state and (.letters|length>0) and (.exhibits|length>0)' "${SESSION_DIR}/packet/manifest.json"
+python3 - <<EOF
 import json, sys, pathlib
 try:
     import jsonschema
 except ImportError:
-    sys.exit(1)
+    sys.exit(78)  # no jsonschema installed -> shell falls back to jq below
 skill = pathlib.Path("${SKILL_DIR}")
-jsonschema.validate(
-    json.loads(pathlib.Path("${SESSION_DIR}/packet/manifest.json").read_text()),
-    json.loads((skill / "output.schema.json").read_text()),
-)
+try:
+    jsonschema.validate(
+        json.loads(pathlib.Path("${SESSION_DIR}/packet/manifest.json").read_text()),
+        json.loads((skill / "output.schema.json").read_text()),
+    )
+except jsonschema.ValidationError as e:
+    print(f"manifest FAILED schema validation: {e.message}", file=sys.stderr)
+    sys.exit(2)  # real validation failure -> must NOT be rescued by jq
 print("manifest OK")
 EOF
+rc=$?
+if [ $rc -eq 78 ]; then
+  jq -e '.schemaVersion==1 and .state and (.letters|length>0) and (.exhibits|length>0)' "${SESSION_DIR}/packet/manifest.json"
+elif [ $rc -ne 0 ]; then
+  exit $rc
+fi
 ```
 
 Finally, walk the victim through `packet/README.md`: the filing order, the

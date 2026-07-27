@@ -56,3 +56,23 @@ def test_empty_incident_window_is_error():
     )
     assert r.returncode == 2
     assert "incident" in r.stderr.lower()
+
+
+def test_multi_currency_in_scope_is_error(tmp_path):
+    # Baseline row is USD, incident rows are INR: two distinct currencies
+    # across baseline + incident windows must be rejected rather than summed
+    # together and reported under an arbitrarily-chosen currency label.
+    csv_path = tmp_path / "mixed_currency.csv"
+    csv_path.write_text(
+        "usage_start_time,service,sku,cost,currency\n"
+        "2026-04-24T00:00:00Z,generativelanguage.googleapis.com,Gemini Flash,100.0,USD\n"
+        "2026-05-24T01:00:00Z,generativelanguage.googleapis.com,Gemini Flash,500.0,INR\n"
+        "2026-05-24T02:00:00Z,generativelanguage.googleapis.com,Gemini Flash,600.0,INR\n"
+    )
+    r = run_script(
+        "analyze_billing.py", "--csv", str(csv_path),
+        "--baseline-start", "2026-04-24", "--baseline-end", "2026-05-24",
+        "--incident-start", "2026-05-24T00:00:00Z", "--incident-end", "2026-05-24T08:00:00Z",
+    )
+    assert r.returncode == 2
+    assert "currenc" in r.stderr.lower()

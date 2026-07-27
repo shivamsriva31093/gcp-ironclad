@@ -6,7 +6,7 @@
     "company_name": "Company / legal entity name (use personal name if none)",
     "billing_account_id": "GCP billing account ID (XXXXXX-XXXXXX-XXXXXX)",
     "project_ids": "Comma-separated affected GCP project IDs",
-    "case_number": "Existing Google support case / ticket number",
+    "case_number": "Existing Google support case / ticket number (FRESH state with no case yet: use 'not yet assigned' — never fabricate a case number)",
     "days_since_filing": "Days elapsed since the dispute was filed",
     "prior_response_summary": "One-paragraph summary of Google's last response (offer %, denial, silence)",
     "disputed_amount": "Disputed amount with thousands separators, no symbol",
