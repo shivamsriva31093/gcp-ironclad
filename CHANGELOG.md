@@ -4,11 +4,16 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0] — 2026-06-05
+## [Unreleased]
 
 ### Added
 
 - **New skill: `gcp-dispute-kit`.** Assembles a dispute-grade evidence packet after GCP API-key fraud: entry-state triage (BLEEDING halts with an emergency-stop checklist; FRESH gets a Google console-dispute letter; STUCK gets escalation letters), read-only evidence collection that degrades gracefully (BigQuery export → billing CSV → Cloud Monitoring per-key metrics → manual attachments), deterministic fraud-signature analysis (baseline-vs-spike multiplier, model-variety fingerprint, peak-hour cost), and `{{placeholder}}` letter templates for Google + India (bank chargeback / NCH / CERT-In) + US (FTC, marked not-field-validated) tracks. Letters with unresolved placeholders are a hard error. Packet manifest is schema-validated; the whole flow is covered by a new `pytest-dispute-kit` CI job with a synthetic-fixture end-to-end test.
+
+## [1.1.0] — 2026-06-05
+
+### Added
+
 - **Cloud Asset Inventory (CAI) fast-path for `gcp-credentials-audit`.** When `cloudasset.googleapis.com` is enabled and the caller has `roles/cloudasset.viewer`, the credentials audit inventories API keys and user-managed SA keys through a few org/folder-scoped CAI queries instead of a per-project `gcloud` loop — collapsing thousands of sequential calls into a handful on multi-organization accounts. Projects not covered by a successful CAI query (standalone projects, or scopes the caller can't read) transparently fall back to the existing per-project loop, and the audit emits the exact `gcloud services enable …` / grant-`roles/cloudasset.viewer` commands to unlock the fast path next run. Strict READ-ONLY is preserved — the audit never enables an API or changes IAM — and `audit.json` output is unchanged.
 - Opt-in `AUDIT_VERIFY_PARITY=1` mode that cross-checks the CAI fast path against the per-project loop on identical scope (a defect in field mapping shows up as a parity mismatch).
 - Runtime self-validation of the produced `audit.json` against `output.schema.json` at the end of the audit, with a structural `jq` fallback when the `jsonschema` CLI is absent.
