@@ -3,7 +3,7 @@
 > Automated API-key audit and safe spend hardening for Google Cloud, run from Claude Code.
 > Built after an unrestricted API key racked up **~$80,000 (≈₹67 lakh) of fraudulent Gemini API charges in 8 hours overnight**.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) ![Skills](https://img.shields.io/badge/Claude%20Code%20skills-5-blue) ![MCP server](https://img.shields.io/badge/MCP%20server-gcp--finops-green)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) ![Skills](https://img.shields.io/badge/Claude%20Code%20skills-6-blue) ![MCP server](https://img.shields.io/badge/MCP%20server-gcp--finops-green)
 
 ## TL;DR
 
@@ -11,7 +11,7 @@ If you use Google Cloud, you're one leaked API key away from a six-figure bill. 
 
 This repo provides one:
 
-- **Five Claude Code skills** — a driver plus four sub-skills — that audit every API key and SA key across every accessible project, detect past spend anomalies, and apply safe blast-radius controls (quota caps on Gemini API, billing budget alerts, disabling idle paid APIs, restricting unrestricted keys to APIs they actually use).
+- **Six Claude Code skills** — a driver, four hardening sub-skills, and a dispute-recovery kit — that audit every API key and SA key across every accessible project, detect past spend anomalies, and apply safe blast-radius controls (quota caps on Gemini API, billing budget alerts, disabling idle paid APIs, restricting unrestricted keys to APIs they actually use), and assemble dispute-grade evidence packets with ready-to-file letters after a fraud incident.
 - **An MCP server** (`gcp-finops`) for natural-language billing-data analysis through Claude Code.
 
 Every action is idempotent and reversible. Destructive items (key deletion, IAM changes, billing-account close) are *never* auto-applied — only flagged with the exact `gcloud` command for human review. If any project is currently bleeding (>10× baseline in the last 24h) the mutating phase halts automatically.
@@ -28,12 +28,13 @@ The longer version is in [`docs/incident-story.md`](docs/incident-story.md).
 
 ```
 gcp-ironclad/
-├── skills/                        5 Claude Code skills
+├── skills/                        6 Claude Code skills
 │   ├── gcp-ironclad/                Driver — orchestrates the run
 │   ├── gcp-credentials-audit/       READ-ONLY  inventory + risk classification
 │   ├── gcp-cost-anomaly-scan/       READ-ONLY  historical anomaly detection
 │   ├── gcp-spend-guardrails/        APPLY      quotas + budgets + idle-API disable
-│   └── gcp-key-restrictions/        APPLY      lock down unrestricted keys
+│   ├── gcp-key-restrictions/        APPLY      lock down unrestricted keys
+│   └── gcp-dispute-kit/             READ-ONLY  evidence packet + dispute letters after fraud
 ├── mcp/gcp-finops/                Python MCP server for billing analysis
 ├── docs/
 │   ├── design.md                    Architecture, safety matrix, phase model
@@ -104,9 +105,9 @@ gcloud auth application-default login
 cp .mcp.json.example .mcp.json
 # Edit .mcp.json — set GCP_PROJECT_ID and (optionally) BQ_BILLING_TABLE
 
-# 4. Make the 5 skills discoverable to Claude Code
+# 4. Make the 6 skills discoverable to Claude Code
 for d in gcp-ironclad gcp-credentials-audit gcp-cost-anomaly-scan \
-         gcp-spend-guardrails gcp-key-restrictions; do
+         gcp-spend-guardrails gcp-key-restrictions gcp-dispute-kit; do
   ln -sf "$(pwd)/skills/$d" ~/.claude/skills/$d
 done
 ```
