@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-26T12:00:00Z",
+  "state": "FRESH",
+  "jurisdictions": ["IN"],
+  "amounts": { "disputed": 80000.0, "currencyCode": "USD" },
+  "incidentWindow": { "start": "2026-05-24T00:00:00Z", "end": "2026-05-24T08:00:00Z" },
+  "analysis": {
+    "baselineDailyMedian": 1400.0,
+    "multiplierDailyRate": 171.4286,
+    "peakHourlyCost": 20000.0,
+    "distinctSkusIncident": 8
+  },
+  "sources": [
+    { "type": "billing_csv", "available": true, "exhibits": ["EX-01"] },
+    { "type": "bq_export", "available": false, "exhibits": [] }
+  ],
+  "letters": [
+    { "track": "google", "template": "templates/google/console-dispute.template.md", "path": "letters/console-dispute.md" }
+  ],
+  "exhibits": [
+    { "id": "EX-01", "file": "exhibits/EX-01-billing-normalized.csv", "producedBy": "manual CSV export, normalized per SKILL.md Phase 1", "description": "Normalized billing rows, baseline + incident window" }
+  ],
+  "gaps": [
+    { "missing": "bq_export", "manualAction": "Attach the invoice PDF from Console → Billing → Documents" }
+  ]
+}

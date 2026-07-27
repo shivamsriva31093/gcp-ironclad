@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "gcp-dispute-kit packet manifest",
+  "type": "object",
+  "required": ["schemaVersion", "generatedAt", "state", "jurisdictions", "amounts", "incidentWindow", "analysis", "sources", "letters", "exhibits", "gaps"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "state": { "enum": ["FRESH", "STUCK"] },
+    "jurisdictions": { "type": "array", "items": { "enum": ["IN", "US"] } },
+    "amounts": {
+      "type": "object",
+      "required": ["disputed", "currencyCode"],
+      "properties": {
+        "disputed": { "type": "number", "exclusiveMinimum": 0 },
+        "currencyCode": { "type": "string", "minLength": 3, "maxLength": 3 }
+      }
+    },
+    "incidentWindow": {
+      "type": "object",
+      "required": ["start", "end"],
+      "properties": {
+        "start": { "type": "string", "format": "date-time" },
+        "end": { "type": "string", "format": "date-time" }
+      }
+    },
+    "analysis": {
+      "type": "object",
+      "required": ["baselineDailyMedian", "multiplierDailyRate", "peakHourlyCost", "distinctSkusIncident"],
+      "properties": {
+        "baselineDailyMedian": { "type": "number" },
+        "multiplierDailyRate": { "type": "number" },
+        "peakHourlyCost": { "type": "number" },
+        "distinctSkusIncident": { "type": "integer" }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "available"],
+        "properties": {
+          "type": { "enum": ["bq_export", "billing_csv", "monitoring", "api_keys", "audit_logs", "victim_stated"] },
+          "available": { "type": "boolean" },
+          "exhibits": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "letters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["track", "template", "path"],
+        "properties": {
+          "track": { "enum": ["google", "india", "us"] },
+          "template": { "type": "string" },
+          "path": { "type": "string" }
+        }
+      }
+    },
+    "exhibits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "file", "producedBy"],
+        "properties": {
+          "id": { "type": "string" },
+          "file": { "type": "string" },
+          "producedBy": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["missing", "manualAction"],
+        "properties": {
+          "missing": { "type": "string" },
+          "manualAction": { "type": "string" }
+        }
+      }
+    }
+  }
+}
