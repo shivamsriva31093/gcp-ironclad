@@ -14,12 +14,20 @@ import sys
 from pathlib import Path
 
 PLACEHOLDER = re.compile(r"\{\{([a-z0-9_]+)\}\}")
+UNRESOLVED = re.compile(r"\{\{[^}]*\}\}")
 
 
 def find_placeholders(text: str) -> list[str]:
     seen: dict[str, None] = {}
     for m in PLACEHOLDER.finditer(text):
         seen.setdefault(m.group(1))
+    return list(seen)
+
+
+def find_unresolved_spans(text: str) -> list[str]:
+    seen: dict[str, None] = {}
+    for m in UNRESOLVED.finditer(text):
+        seen.setdefault(m.group(0))
     return list(seen)
 
 
@@ -48,7 +56,7 @@ def main() -> int:
         text,
     )
 
-    unresolved = find_placeholders(rendered)
+    unresolved = find_unresolved_spans(rendered)
     if unresolved:
         print("unresolved placeholders: " + ", ".join(unresolved), file=sys.stderr)
         return 1

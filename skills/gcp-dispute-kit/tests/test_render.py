@@ -43,3 +43,13 @@ def test_list_mode_prints_placeholders(tmp_path):
     r = run_script("render.py", "--template", str(tpl), "--list")
     assert r.returncode == 0
     assert r.stdout.split() == ["alpha", "beta"]
+
+
+def test_malformed_placeholder_is_hard_error(tmp_path):
+    tpl = _write(tmp_path, "t.md", "Hello {{name}}, ref {{CaseNumber}}.\n")
+    vals = _write(tmp_path, "v.json", json.dumps({"name": "Asha"}))
+    out = tmp_path / "out.md"
+    r = run_script("render.py", "--template", str(tpl), "--values", str(vals), "--out", str(out))
+    assert r.returncode == 1
+    assert "CaseNumber" in r.stderr
+    assert not out.exists()
