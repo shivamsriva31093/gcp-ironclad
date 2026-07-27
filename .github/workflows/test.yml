@@ -33,6 +33,23 @@ jobs:
         run: pytest -v
         working-directory: mcp/gcp-finops
 
+  pytest-dispute-kit:
+    name: pytest (gcp-dispute-kit skill)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install test deps
+        run: pip install pytest jsonschema
+
+      - name: Run dispute-kit tests
+        run: python -m pytest skills/gcp-dispute-kit/tests -v
+
   validate-schemas:
     name: validate skill JSON schemas + SKILL.md frontmatter
     runs-on: ubuntu-latest
