@@ -18,7 +18,7 @@ I am the account holder for billing account **{{billing_account_id}}** ({{compan
 Attached exhibits:
 {{exhibit_list_summary}}
 
-This is a documented, recurring abuse pattern affecting many GCP customers (leaked unrestricted API keys driven by automated abuse services). Google's own guidance acknowledges that new API keys are created unrestricted by default.
+This is a documented, recurring abuse pattern affecting many GCP customers (leaked unrestricted API keys driven by automated abuse services). Google's own guidance acknowledged that new API keys were created unrestricted by default — a default Google has since retired for the Gemini API by rejecting unrestricted keys (June 19, 2026): an acknowledgment, in product form, that the configuration this fraud exploited was unsafe.
 
 **I request:**
 1. A full billing adjustment of {{currency_symbol}}{{disputed_amount}} as fraudulent usage;

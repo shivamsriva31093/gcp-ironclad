@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **Docs and dispute letters updated for Google's mid-2026 Gemini key policy change** (unrestricted standard keys rejected since 2026-06-19; auth keys mandatory from September 2026). README TL;DR and `docs/incident-story.md` gained dated updates; the console-dispute/NCH/FTC letter templates now scope the "unrestricted by default" claim to the incident era and cite Google's own retirement of that default as supporting evidence.
+
 ### Fixed
 
 - **`gcp-dispute-kit`: letters no longer assert evidence the packet may not contain.** The Google console-dispute letter hardcoded "prepared from my own billing export and monitoring data" and "per-credential request metrics … are attached" — false claims for the common victim with no billing export. Both claims (and the evidence summary's attribution line) are now agent-filled placeholders (`evidence_basis_clause`, `attribution_claim`) constrained to sources that actually produced exhibits. Found by a dogfood run, not by the unit tests.

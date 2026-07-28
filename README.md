@@ -9,6 +9,8 @@
 
 If you use Google Cloud, you're one leaked API key away from a six-figure bill. Google's "budget caps" only send you an email — they don't actually cap spending. New API keys are created **unrestricted** by default. There is no built-in last line of defense.
 
+> **Update (July 2026):** Google has begun retiring this design — for the Gemini API specifically. Since **June 19, 2026** the Gemini API rejects unrestricted standard keys, and by **September 2026** standard keys give way to service-account-backed [auth keys](https://ai.google.dev/gemini-api/docs/api-key) with built-in leaked-key enforcement. That validates this project's threat model; it does not close it: every other GCP API still accepts unrestricted keys, budgets still only email, and fraud predating the change still needs disputing.
+
 This repo provides one:
 
 - **Six Claude Code skills** — a driver, four hardening sub-skills, and a dispute-recovery kit — that audit every API key and SA key across every accessible project, detect past spend anomalies, and apply safe blast-radius controls (quota caps on Gemini API, billing budget alerts, disabling idle paid APIs, restricting unrestricted keys to APIs they actually use), and assemble dispute-grade evidence packets with ready-to-file letters after a fraud incident.

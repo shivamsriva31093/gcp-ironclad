@@ -32,6 +32,10 @@ Across the dispute and the post-mortem, several Google-side gaps surfaced:
 
 5. **No real-time abuse block.** A jump from $1,400/day to $20,000/hour is, by any measure, anomalous. The detection signal exists in Cloud Monitoring (`serviceruntime.googleapis.com/api/request_count` by `credential_id`) but the platform did not act on it.
 
+## What changed since (mid-2026)
+
+Google has retired the design this incident exploited — for Gemini specifically. Unrestricted standard keys are rejected by the Gemini API since **June 19, 2026**, and from **September 2026** it accepts only service-account-backed **auth keys** with, in Google's words, *"fast-acting leaked key enforcement that quickly stops the usage of leaked keys detected by our systems."* Gaps 1 and 5 above are closing for this one API — an acknowledgment, in product form, that the defaults were unsafe. The rest of the platform still works the old way, and none of this retroactively helps the victims disputing charges from before the change.
+
 ## The dispute
 
 Reported the same day via the official Cloud Console support channel, the charges were ultimately disputed as fraud. Google's documented practice — confirmed in [The Register](https://www.theregister.com/devops/2026/05/15/google-reimburses-register-sources-who-were-victims-of-api-fraud/5241429) — is to reimburse victims of API-key fraud when reported promptly with evidence. If you find yourself here: state the spike magnitude, the model variety, the impossible volumes, the mitigation taken; explicitly request a billing adjustment; **do not pay while disputing.**
