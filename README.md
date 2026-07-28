@@ -144,7 +144,7 @@ Found a vulnerability? Please [report privately](SECURITY.md) rather than filing
 
 ## Status
 
-**v1.0.0** — works end-to-end. Tested against a multi-project GCP organization. 96 unit tests in CI (pytest matrix on Python 3.11/3.12/3.13) plus `bandit` static analysis and `pip-audit` CVE scan, all required to pass. Pull requests welcome.
+**v1.2.0** — works end-to-end. Tested against a multi-project GCP organization. 150 tests in CI — 96 for the `gcp-finops` MCP server (pytest matrix on Python 3.11/3.12/3.13) and 54 for the `gcp-dispute-kit` skill (including a synthetic-fixture end-to-end packet run) — plus schema validation, `bandit` static analysis, and `pip-audit` CVE scan, all required to pass. Pull requests welcome.
 
 ## Contributing
 
