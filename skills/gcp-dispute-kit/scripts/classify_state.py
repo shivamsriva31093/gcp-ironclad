@@ -35,7 +35,12 @@ def classify(intake: dict) -> dict:
         return {"state": "BLEEDING", "letters": [], "handoff": "checklists/emergency-stop.md"}
 
     if not intake["disputeFiled"]:
-        return {"state": "FRESH", "letters": [GOOGLE_FRESH], "handoff": None}
+        letters = [GOOGLE_FRESH]
+        # The India card-chargeback window runs from the statement date, not
+        # from Google's reply — FRESH must not sit on that clock.
+        if "IN" in intake["jurisdictions"]:
+            letters.append(INDIA[0])
+        return {"state": "FRESH", "letters": letters, "handoff": None}
 
     letters = [GOOGLE_STUCK]
     if "IN" in intake["jurisdictions"]:

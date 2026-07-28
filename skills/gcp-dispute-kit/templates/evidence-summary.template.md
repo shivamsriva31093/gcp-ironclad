@@ -20,7 +20,7 @@ Median daily spend over the 30 days before the incident: **{{currency_symbol}}{{
 
 ## 4. Attribution
 
-The traffic is attributable to API key **{{abused_key_display_name}}** based on per-credential request metrics for the incident window. (Source-IP attribution is generally not available for API-key traffic; no IP claims are made.)
+{{attribution_claim}} (Source-IP attribution is generally not available for API-key traffic; no IP claims are made.)
 
 ## 5. Timeline of discovery and mitigation
 

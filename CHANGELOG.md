@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- **`gcp-dispute-kit`: letters no longer assert evidence the packet may not contain.** The Google console-dispute letter hardcoded "prepared from my own billing export and monitoring data" and "per-credential request metrics … are attached" — false claims for the common victim with no billing export. Both claims (and the evidence summary's attribution line) are now agent-filled placeholders (`evidence_basis_clause`, `attribution_claim`) constrained to sources that actually produced exhibits. Found by a dogfood run, not by the unit tests.
+- **`gcp-dispute-kit`: FRESH-state Indian victims now also get the bank-chargeback letter.** The India card-dispute window runs from the statement date, not from Google's reply — filing only with Google first silently burned that clock.
+
 ### Added
 
 - **New skill: `gcp-dispute-kit`.** Assembles a dispute-grade evidence packet after GCP API-key fraud: entry-state triage (BLEEDING halts with an emergency-stop checklist; FRESH gets a Google console-dispute letter; STUCK gets escalation letters), read-only evidence collection that degrades gracefully (BigQuery export → billing CSV → Cloud Monitoring per-key metrics → manual attachments), deterministic fraud-signature analysis (baseline-vs-spike multiplier, model-variety fingerprint, peak-hour cost), and `{{placeholder}}` letter templates for Google + India (bank chargeback / NCH / CERT-In) + US (FTC, marked not-field-validated) tracks. Letters with unresolved placeholders are a hard error. Packet manifest is schema-validated; the whole flow is covered by a new `pytest-dispute-kit` CI job with a synthetic-fixture end-to-end test.

@@ -12,13 +12,17 @@ IN_ALL = [
     "templates/india/cert-in-report.template.md",
 ]
 US_FTC = "templates/us/ftc-complaint.template.md"
+IN_BANK = "templates/india/bank-chargeback.template.md"
 
 CASES = [
     # (activeSpike, disputeFiled, jurisdictions, state, letters, handoff)
     (True, False, ["IN"], "BLEEDING", [], "checklists/emergency-stop.md"),
     (True, True, ["IN", "US"], "BLEEDING", [], "checklists/emergency-stop.md"),
     (False, False, [], "FRESH", [G], None),
-    (False, False, ["IN"], "FRESH", [G], None),
+    # FRESH + IN also emits the bank-chargeback letter: the card-dispute
+    # window runs from the statement date, not from Google's reply.
+    (False, False, ["IN"], "FRESH", [G, IN_BANK], None),
+    (False, False, ["IN", "US"], "FRESH", [G, IN_BANK], None),
     (False, True, [], "STUCK", [GE], None),
     (False, True, ["IN"], "STUCK", [GE, *IN_ALL], None),
     (False, True, ["US"], "STUCK", [GE, US_FTC], None),

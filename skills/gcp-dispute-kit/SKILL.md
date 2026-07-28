@@ -17,7 +17,7 @@ Three entry states, three different products:
 | State | Meaning | You get |
 |---|---|---|
 | `BLEEDING` | Spend is spiking right now | `checklists/emergency-stop.md` — nothing else until the bleeding stops |
-| `FRESH` | Incident over, nothing filed | Full packet + Google console-dispute letter |
+| `FRESH` | Incident over, nothing filed | Full packet + Google console-dispute letter (+ India bank-chargeback letter when jurisdiction includes IN — the card-dispute clock runs from the statement date, not from Google's reply) |
 | `STUCK` | Dispute filed but stalled | Packet + escalation letters (Google reply + IN/US external tracks) |
 
 ## When to Use
@@ -154,6 +154,7 @@ Interpretation duties (yours, not the script's):
 
 - Write `model_variety_summary` from `topSkus` (name the model families).
 - Write `impossible_volume_summary` from usage volumes if the export has them; otherwise from cost-implied volumes — and mark the claim CSV-backed or victim-stated accordingly.
+- Write `evidence_basis_clause` and `attribution_claim` strictly from sources that produced exhibits: if per-credential metrics were collected, cite them with their exhibit id ("per the per-credential request metrics attached as Exhibit EX-NN"); if not, attribution rests on the key's compromise and its disablement ending the abuse. **Never state that something is attached unless it is in `packet/exhibits/`.**
 - **Never claim source IPs.** Attribution is per-key, per-window only.
 - If only daily granularity exists, omit peak-hour language from the narrative values (write "within a single day" phrasing instead).
 

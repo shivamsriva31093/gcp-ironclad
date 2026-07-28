@@ -57,3 +57,17 @@ def test_letters_fit_support_form_limits(tpl):
     assert len(tpl.read_text()) < FORM_LIMIT_CHARS, (
         f"{tpl.name} exceeds {FORM_LIMIT_CHARS} chars — no longer paste-ready for form fields"
     )
+
+
+def test_evidence_claims_are_placeholder_driven():
+    # Dogfood finding: the letter must never assert evidence the packet may
+    # not contain. The basis and attribution claims are agent-filled per
+    # actually-available sources, not hardcoded.
+    console = (TEMPLATES / "google" / "console-dispute.template.md").read_text()
+    evidence = (TEMPLATES / "evidence-summary.template.md").read_text()
+    assert "prepared from my own billing export and monitoring data" not in console
+    assert "Per-credential request metrics for the incident window are attached" not in console
+    assert "{{evidence_basis_clause}}" in console
+    assert "{{attribution_claim}}" in console
+    assert "based on per-credential request metrics for the incident window" not in evidence
+    assert "{{attribution_claim}}" in evidence

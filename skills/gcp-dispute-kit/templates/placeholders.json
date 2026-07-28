@@ -25,6 +25,8 @@
     "discovery_datetime": "When the victim discovered the charges, ISO-8601",
     "mitigation_datetime": "When the key was disabled/restricted, ISO-8601",
     "mitigation_summary": "One sentence listing mitigation taken (key disabled, restrictions applied, etc.)",
+    "evidence_basis_clause": "What the evidence was actually prepared from, matching only sources that produced exhibits — e.g. 'my own BigQuery billing export and Cloud Monitoring data', 'the invoice CSV downloaded from the Cloud Console', or 'my account's billing records'. Never name a source that produced no exhibit.",
+    "attribution_claim": "Full attribution sentence matched to available evidence. If per-credential metrics were collected: 'The traffic is attributable to the API key <name>, per the per-credential request metrics attached as Exhibit EX-NN.' If not: state the key was compromised and that disabling it immediately ended the abuse. Never claim something is attached unless it is in packet/exhibits/.",
     "exhibit_list_summary": "Bulleted list of exhibit filenames with one-line descriptions",
     "manual_attachments_list": "Bulleted list of items the victim must attach by hand (empty string if none)",
     "deadline_tracker_rows": "Markdown table rows of track | action | deadline | status",
