@@ -13,7 +13,7 @@
         "type": "object",
         "required": ["kind", "target", "outcome", "details", "rollback"],
         "properties": {
-          "kind":     { "enum": ["set_quota", "create_budget", "disable_idle_api"] },
+          "kind":     { "enum": ["set_quota", "create_budget", "recommend_spend_cap", "disable_idle_api"] },
           "target":   { "type": "string" },
           "outcome":  { "enum": ["applied", "skipped", "flagged"] },
           "reason":   { "type": "string" },

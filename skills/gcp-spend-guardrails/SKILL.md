@@ -1,6 +1,6 @@
 ---
 name: gcp-spend-guardrails
-description: Use to apply blast-radius spend controls on GCP projects — quota caps on `generativelanguage.googleapis.com`, Cloud Billing budget alerts, and disabling paid APIs idle on projects with no recent legitimate usage. Idempotent. Honors `--dry-run`. Use standalone or as Phase 3a of `gcp-ironclad`.
+description: Use to apply blast-radius spend controls on GCP projects — quota caps on `generativelanguage.googleapis.com`, Cloud Billing budget alerts, disabling paid APIs idle on projects with no recent legitimate usage, and flagging where a hard spend-cap budget (Public Preview, console-only) should be added. Idempotent. Honors `--dry-run`. Use standalone or as Phase 3a of `gcp-ironclad`.
 ---
 
 # GCP Spend Guardrails (APPLY)
@@ -32,6 +32,7 @@ Writes `${SESSION_DIR}/guardrails-applied.json` matching `output.schema.json`.
 | Set Gemini API quota | API enabled + ≥7d usage + proposed > peak | No usage data; new project (<7d); export missing |
 | Quota sizing | `max(peak_30d × 5, 5000/day)` | Peak shows abuse signature → use floor only |
 | Create budget alerts | caller is `billing.admin` + no existing budget at threshold | viewer-only; budget already configured |
+| Recommend spend-cap budget | never auto-applied — console-only (no gcloud/API surface as of July 2026), and pausing a live service is a human call | always flagged, never applied |
 | Disable idle API | zero 30-d usage + enabled >7d + not `sys-*` | any usage in 30d; enabled <7d; system project |
 
 ## Execution
@@ -86,7 +87,17 @@ For each billing account where the caller is `billing.admin`:
      ```
    - Rollback: `gcloud billing budgets delete <BUDGET_ID> --billing-account=${B}`
 
-### Action 3 — Disable idle paid APIs
+These budgets **alert only** — they do not stop spending. For hard enforcement see Action 2b.
+
+### Action 2b — Flag spend-cap budget candidates (Public Preview, console-only)
+
+Since **July 29, 2026**, [spend caps on budgets](https://docs.cloud.google.com/billing/docs/how-to/budgets-spend-caps) (Public Preview) can *pause* a service within minutes of a monthly threshold. As of this writing there is **no gcloud or Billing Budget API surface** — creation is console-only — and pausing a live service can take down production traffic (blocked calls get permission errors). So this action **never applies anything**; it emits one flag per candidate.
+
+1. Eligible services (July 2026): `generativelanguage.googleapis.com` (Gemini API), `aiplatform.googleapis.com` (Agent Platform), `run.googleapis.com` (Cloud Run), `cloudfunctions.googleapis.com` (Cloud Run functions). Re-check the docs page — coverage will likely expand.
+2. For each project in scope, for each eligible service that is enabled with any 30-day usage, emit a flag entry with reason `"spend_cap_recommended"` and details:
+   - Console path: **Billing → Budgets & alerts → Create budget → budget type "Spend cap"**, scope = this project + this service, monthly amount sized like Action 2 (suggest the `2x` multiplier of that service's 30-day spend as a starting point).
+   - Caveats to surface verbatim: one project + one service per cap; fixed monthly window; enforcement uses gross *estimated* costs, is not instant, and overage during the lag still bills; commitment fees (CUDs, provisioned throughput) keep billing; lifting the cap is manual and can take up to an hour to fully resume.
+3. If a spend-cap budget for that project+service already exists (visible in `gcloud billing budgets list` output or the console), skip with reason `"already_exists"`.
 
 For each project, for each of `generativelanguage.googleapis.com`, `aiplatform.googleapis.com`, `maps-backend.googleapis.com`, `translate.googleapis.com`:
 
@@ -103,7 +114,7 @@ For each project, for each of `generativelanguage.googleapis.com`, `aiplatform.g
 
 Atomic write, same pattern as audit.json. Print summary:
 
-> Spend guardrails applied (dryRun=${DRY_RUN}). Quotas: A applied / B skipped / C flagged. Budgets: D applied / E skipped. Idle-API disable: F applied / G skipped. Output: `${SESSION_DIR}/guardrails-applied.json`.
+> Spend guardrails applied (dryRun=${DRY_RUN}). Quotas: A applied / B skipped / C flagged. Budgets: D applied / E skipped. Spend-cap candidates flagged: H (console-only, review required). Idle-API disable: F applied / G skipped. Output: `${SESSION_DIR}/guardrails-applied.json`.
 
 ## Error handling
 

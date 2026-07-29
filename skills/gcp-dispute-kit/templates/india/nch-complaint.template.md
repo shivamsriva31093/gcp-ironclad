@@ -10,7 +10,7 @@
 
 I am a paying Google Cloud customer (billing account {{billing_account_id}}). Between {{incident_start}} and {{incident_end}}, a leaked API credential was exploited by an automated abuse service to generate fraudulent charges of {{currency_symbol}}{{disputed_amount}} on my account — **{{spike_multiplier}} times** my established daily spend of {{currency_symbol}}{{baseline_daily_spend}}, within {{incident_hours}} hours.
 
-The service provider's own product defaults contributed to the loss: API keys were issued **unrestricted by default** (a default the provider has since retired for its Gemini API, June 2026 — acknowledging it was unsafe), and the provider's billing "budget" product sends alerts only — it does not stop spending. The provider's fraud systems did not flag a spend rate of {{currency_symbol}}{{peak_hourly_cost}} in a single hour.
+The service provider's own product defaults contributed to the loss: API keys were issued **unrestricted by default** (a default the provider has since retired for its Gemini API, June 2026 — acknowledging it was unsafe), and at the time of the incident the provider's billing "budget" product sent alerts only — it could not stop spending (an enforcement gap the provider closed only in July 2026, when it launched hard spend caps — again acknowledging the gap was real). The provider's fraud systems did not flag a spend rate of {{currency_symbol}}{{peak_hourly_cost}} in a single hour.
 
 I reported the fraud promptly (Google case {{case_number}}, filed {{days_since_filing}} days ago) with complete evidence from the provider's own billing data. Current status: {{prior_response_summary}}
 

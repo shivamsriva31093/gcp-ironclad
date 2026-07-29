@@ -9,6 +9,8 @@ description: Use to detect whether any GCP project has experienced an abnormal s
 
 For every billing account the caller can see, determines whether any project has experienced an abnormal spend spike in the last `LOOKBACK_DAYS` days (default 60). Uses the `gcp-finops` MCP server when available; otherwise falls back to direct `bq query` against billing-export tables.
 
+> **Related native feature (July 2026):** Google's [Early Anomalies](https://docs.cloud.google.com/billing/docs/how-to/manage-anomalies#view-early-anomalies) (Preview) now does forward-looking, pre-invoice anomaly alerting with root-cause SKU attribution — but only for Gemini API, Agent Platform, Cloud Run, and Cloud Run functions, per project, in the console's Anomalies section. This skill remains the historical sweep across *all* services and billing accounts, and produces the `anomalies.json` later phases consume. When reporting, mention enabling Early Anomalies review as a complementary forward-looking control.
+
 ## When to Use
 
 - Triggered by the `gcp-ironclad` driver as Phase 1b.

@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Docs and skills updated for Google's July 29, 2026 budget launch** — hard **spend caps on budgets** and **Early Anomalies**, both Public Preview, both limited to Gemini API / Agent Platform / Cloud Run / Cloud Run functions. The "budgets only email" premise in the README, `docs/design.md`, and `docs/incident-story.md` is now dated and scoped (it remains true for every other GCP service); the NCH complaint template scopes its budget claim to the incident era and cites the launch as evidence the gap was real. `gcp-spend-guardrails` gained flag-only **Action 2b** (`recommend_spend_cap` in the output schema): spend caps have no gcloud/API surface — console-only — and pausing a live service is a human decision, so candidates are flagged with sizing guidance and Preview caveats, never auto-applied. `gcp-cost-anomaly-scan` now positions itself relative to native Early Anomalies (historical all-service sweep vs. forward-looking four-service alerting).
+
 ## [1.2.0] — 2026-07-28
 
 ### Changed

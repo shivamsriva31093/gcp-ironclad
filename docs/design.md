@@ -11,7 +11,7 @@ That is: the dangerous configuration is the default. Combine that with:
 
 - API keys are **"open secrets"** (Google's own phrasing) — not paired with identity; anyone with the string can use a key.
 - A stolen API key grants access to *"any available service at your expense."*
-- Cloud Billing budgets **do not cap spending** — per Google's docs, a budget *"does not automatically cap usage/spending."*
+- Cloud Billing budgets **do not cap spending** — per Google's docs, a budget *"does not automatically cap usage/spending."* (*Changing: since July 29, 2026, Public Preview [spend caps](https://docs.cloud.google.com/billing/docs/how-to/budgets-spend-caps) can pause exactly four services — Gemini API, Agent Platform, Cloud Run, Cloud Run functions — one project + one service per cap, console-only. Everything else remains alert-only.*)
 - Spend tiers can be auto-upgraded; a `$250` cap has, in published cases, silently become `$100,000`.
 - No platform-side fraud-detection block fires at >100× baseline spend in a single hour.
 

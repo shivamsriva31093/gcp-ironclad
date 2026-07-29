@@ -34,7 +34,12 @@ Across the dispute and the post-mortem, several Google-side gaps surfaced:
 
 ## What changed since (mid-2026)
 
-Google has retired the design this incident exploited — for Gemini specifically. Unrestricted standard keys are rejected by the Gemini API since **June 19, 2026**, and from **September 2026** it accepts only service-account-backed **auth keys** with, in Google's words, *"fast-acting leaked key enforcement that quickly stops the usage of leaked keys detected by our systems."* Gaps 1 and 5 above are closing for this one API — an acknowledgment, in product form, that the defaults were unsafe. The rest of the platform still works the old way, and none of this retroactively helps the victims disputing charges from before the change.
+Google has been retiring the design this incident exploited — one gap at a time, in product form.
+
+- **Keys (gaps 1 & 5):** Unrestricted standard keys are rejected by the Gemini API since **June 19, 2026**, and from **September 2026** it accepts only service-account-backed **auth keys** with, in Google's words, *"fast-acting leaked key enforcement that quickly stops the usage of leaked keys detected by our systems."*
+- **Budgets (gaps 2 & 5):** On **July 29, 2026** Google launched [spend caps on budgets](https://cloud.google.com/blog/topics/cost-management/new-early-anomalies-and-spend-caps-on-google-cloud-budgets) (Public Preview) — a budget type that *pauses* the capped service within minutes of the threshold instead of emailing while the meter runs — plus **Early Anomalies**, pre-invoice AI-cost alerts with automated root-cause SKU attribution. Coverage: Gemini API, Agent Platform, Cloud Run, and Cloud Run functions only; one project + one service per cap; console-only; overage during the enforcement lag still bills.
+
+Each change is an acknowledgment, in product form, that the defaults were unsafe. The rest of the platform still works the old way, and none of this retroactively helps the victims disputing charges from before the change.
 
 ## The dispute
 
