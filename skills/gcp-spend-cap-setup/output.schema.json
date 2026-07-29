@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "gcp-spend-cap-setup output",
+  "type": "object",
+  "required": ["schemaVersion", "generatedAt", "apiSurfaceDetected", "caps", "errors"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "generatedAt":   { "type": "string", "format": "date-time" },
+    "apiSurfaceDetected": {
+      "type": "boolean",
+      "description": "true if the Budget API v1 discovery doc now exposes an enforcement/cap field (flag only — the skill still never applies)"
+    },
+    "caps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["billingAccount", "project", "service", "displayName", "outcome"],
+        "properties": {
+          "billingAccount":  { "type": "string" },
+          "project":         { "type": "string" },
+          "service":         { "type": "string" },
+          "amountProposed":  { "type": ["number", "null"], "description": "2x 30-day spend; null when no spend data" },
+          "amountChosen":    { "type": ["number", "null"], "description": "null when outcome is skipped or already_exists" },
+          "currency":        { "type": "string" },
+          "displayName":     { "type": "string" },
+          "outcome":         { "enum": ["verified", "skipped", "not_found", "already_exists"] },
+          "enforcementVerified": {
+            "enum": ["manual-attestation", "unconfirmed"],
+            "description": "API cannot expose the Spend-cap type; manual-attestation = user confirmed it visually"
+          },
+          "details":         { "type": "object" }
+        }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["context", "message"],
+        "properties": {
+          "context": { "type": "string" },
+          "message": { "type": "string" }
+        }
+      }
+    }
+  }
+}
