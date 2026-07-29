@@ -21,17 +21,20 @@ This project provides that line: an automated audit-and-harden pass you can run 
 
 ## Top-level architecture
 
-A driver skill (`gcp-ironclad`) plus four focused sub-skills:
+A driver skill (`gcp-ironclad`) plus focused sub-skills:
 
 ```
 gcp-ironclad/                 Driver — orchestrates the run, assembles the final report
 ├── gcp-credentials-audit/    READ-ONLY  inventory + risk classification
 ├── gcp-cost-anomaly-scan/    READ-ONLY  did abuse already happen?
 ├── gcp-spend-guardrails/     APPLY      quotas + budgets + idle-API disable
-└── gcp-key-restrictions/     APPLY      lock down unrestricted keys
+├── gcp-key-restrictions/     APPLY      lock down unrestricted keys
+└── gcp-spend-cap-setup/      GUIDED     hard spend caps — prep + console walk-through + verify (standalone)
 ```
 
 Each sub-skill is invocable standalone. The driver composes them.
+
+`gcp-spend-cap-setup` introduces a third classification, **GUIDED**: the skill itself runs only read-only commands; the one mutation (creating a console-only spend-cap budget, Public Preview since July 2026) is performed by the human, with the skill preparing everything before and verifying everything after. It is standalone — the driver's final report links to it rather than invoking it, keeping driver runs non-interactive.
 
 Skills are Markdown playbooks the Claude Code `Skill` tool loads. The model executes the playbook with `Bash` (calling `gcloud`, `bq`, `jq`) and the `gcp-finops` MCP server. There is no Python "engine" — the playbook *is* the program and the model is the interpreter. This is what lets users read, audit, and modify the behavior without writing code.
 

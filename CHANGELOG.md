@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- **New skill: `gcp-spend-cap-setup` (GUIDED).** Google's hard spend caps (Public Preview, 2026-07-29) are console-only — no gcloud or Budget API surface — so this skill does everything around the one manual click: read-only discovery of eligible project+service pairs (Gemini API, Agent Platform, Cloud Run, Cloud Run functions) with 30-day spend, interactive selection and 2×-spend sizing, a per-cap console runbook with deep links and Preview caveats, then post-creation verification via `gcloud billing budgets list` (name/scope/amount — the API cannot expose the Spend-cap type, so that field gets explicit user attestation). Probes the Budget API discovery doc each run and flags if Google ships an API surface. Consumes `recommend_spend_cap` flags from `gcp-spend-guardrails` when present; linked from the driver's final report. No bleeding-halt gate by design — a cap is the emergency brake.
+
 ### Changed
 
 - **Docs and skills updated for Google's July 29, 2026 budget launch** — hard **spend caps on budgets** and **Early Anomalies**, both Public Preview, both limited to Gemini API / Agent Platform / Cloud Run / Cloud Run functions. The "budgets only email" premise in the README, `docs/design.md`, and `docs/incident-story.md` is now dated and scoped (it remains true for every other GCP service); the NCH complaint template scopes its budget claim to the incident era and cites the launch as evidence the gap was real. `gcp-spend-guardrails` gained flag-only **Action 2b** (`recommend_spend_cap` in the output schema): spend caps have no gcloud/API surface — console-only — and pausing a live service is a human decision, so candidates are flagged with sizing guidance and Preview caveats, never auto-applied. `gcp-cost-anomaly-scan` now positions itself relative to native Early Anomalies (historical all-service sweep vs. forward-looking four-service alerting).

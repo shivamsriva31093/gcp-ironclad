@@ -1,6 +1,6 @@
 # GCP API-Key Ironclad Suite
 
-A driver skill (`gcp-ironclad`) plus four focused sub-skills that together audit and safely harden API-key configuration across all GCP projects you can access.
+A driver skill (`gcp-ironclad`) plus six focused skills that together audit, safely harden, and recover from API-key fraud across all GCP projects you can access.
 
 ## Skills in this suite
 
@@ -11,10 +11,12 @@ A driver skill (`gcp-ironclad`) plus four focused sub-skills that together audit
 | `gcp-cost-anomaly-scan` | READ-ONLY | Detects past spend spikes in your billing-export data |
 | `gcp-spend-guardrails` | APPLY | Quota caps on Gemini API + budget alerts + disable idle paid APIs |
 | `gcp-key-restrictions` | APPLY | Restrict unrestricted API keys to APIs they actually use |
+| `gcp-spend-cap-setup` | GUIDED | Walks you through Google's console-only hard spend caps (Preview) with discovery, sizing, and verification |
+| `gcp-dispute-kit` | READ-ONLY | Assembles a dispute-grade evidence packet + ready-to-file letters after fraud |
 
 ## Directory layout
 
-All five skills live together inside this suite folder:
+All seven skills live together inside this suite folder:
 
 ```
 ~/.claude/skills/gcp-ironclad-suite/
@@ -31,17 +33,25 @@ All five skills live together inside this suite folder:
 ├── gcp-spend-guardrails/           APPLY
 │   ├── SKILL.md
 │   └── output.schema.json
-└── gcp-key-restrictions/           APPLY
+├── gcp-key-restrictions/           APPLY
+│   ├── SKILL.md
+│   └── output.schema.json
+├── gcp-spend-cap-setup/            GUIDED
+│   ├── SKILL.md
+│   └── output.schema.json
+└── gcp-dispute-kit/                READ-ONLY
     ├── SKILL.md
+    ├── templates/
     └── output.schema.json
 ```
 
-For Claude Code skill discovery (which scans the immediate children of `~/.claude/skills/`), each of the five sub-folders is also exposed at `~/.claude/skills/<skill-name>/` via a symlink that points back into this suite folder. You can edit either path — both resolve to the same files. To remove the suite cleanly:
+For Claude Code skill discovery (which scans the immediate children of `~/.claude/skills/`), each of the seven sub-folders is also exposed at `~/.claude/skills/<skill-name>/` via a symlink that points back into this suite folder. You can edit either path — both resolve to the same files. To remove the suite cleanly:
 
 ```bash
 rm -rf ~/.claude/skills/gcp-ironclad-suite
 for d in gcp-ironclad gcp-credentials-audit gcp-cost-anomaly-scan \
-         gcp-spend-guardrails gcp-key-restrictions; do
+         gcp-spend-guardrails gcp-key-restrictions \
+         gcp-spend-cap-setup gcp-dispute-kit; do
   rm -f ~/.claude/skills/$d
 done
 ```
