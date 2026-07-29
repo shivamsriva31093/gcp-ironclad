@@ -101,6 +101,8 @@ To act on these flags with guided discovery, sizing, and post-creation verificat
    - Caveats to surface verbatim: one project + one service per cap; fixed monthly window; enforcement uses gross *estimated* costs, is not instant, and overage during the lag still bills; commitment fees (CUDs, provisioned throughput) keep billing; lifting the cap is manual and can take up to an hour to fully resume.
 3. If a spend-cap budget for that project+service already exists (visible in `gcloud billing budgets list` output or the console), skip with reason `"already_exists"`.
 
+### Action 3 — Disable idle paid APIs
+
 For each project, for each of `generativelanguage.googleapis.com`, `aiplatform.googleapis.com`, `maps-backend.googleapis.com`, `translate.googleapis.com`:
 
 1. Check enabled: `gcloud services list --project=${P} --enabled --filter="config.name:${api}"`. If not enabled → skip.
