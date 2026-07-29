@@ -51,7 +51,7 @@ A tripped cap returns permission errors (403) to ALL callers of that service, in
 
 Skip this step entirely when `MODE=verify`.
 
-1. **Shortcut:** if `${SESSION_DIR}/guardrails-applied.json` exists, take every action with `"kind": "recommend_spend_cap"` as the candidate list (project + service from `target`/`details`), then continue to sub-step 4 to refresh spend numbers.
+1. **Shortcut:** if `${SESSION_DIR}/guardrails-applied.json` exists, take every action with `"kind": "recommend_spend_cap"` as the candidate list (project + service from `target`/`details`), then continue to sub-step 4 to refresh spend numbers. For each seeded candidate, resolve the project's billing account first: `gcloud billing projects describe ${P} --format='value(billingAccountName)'` — later steps and the output's `billingAccount` field need it.
 2. Otherwise enumerate scope:
    ```bash
    gcloud billing accounts list --format=json
@@ -73,7 +73,7 @@ Skip this step entirely when `MODE=verify`.
 
 ### Step 2 — Selection (interactive)
 
-1. Present candidates via AskUserQuestion, multi-select, sorted by 30-day spend descending. Each option label: `{project} · {service-short} · {currency}{spend_30d}/30d`.
+1. Present candidates via AskUserQuestion, multi-select, sorted by 30-day spend descending. Each option label: `{project} · {svc-short} · {currency}{spend_30d}/30d`.
 2. For each selected pair, propose the monthly amount: **2 × 30-day spend, rounded to a clean figure** in the billing account's currency. No spend data → no proposal; ask the user for a number. The user can override any amount.
 3. Record every candidate: selected pairs carry `amountChosen`; unselected pairs get outcome `skipped`, `amountChosen: null`.
 
@@ -111,7 +111,7 @@ Caveats (read before saving):
 ### Step 5 — Output
 
 1. Write `${SESSION_DIR}/spend-caps.json` atomically (write `.tmp`, `mv` into place) with every candidate pair and the probe result.
-2. Self-validate: `jsonschema -i ${SESSION_DIR}/spend-caps.json skills/gcp-spend-cap-setup/output.schema.json` if the CLI is available; otherwise a structural `jq` check (top-level keys present, every cap has the required fields, outcomes within the enum).
+2. Self-validate against `${SKILL_DIR}/output.schema.json`, where `SKILL_DIR` is this skill's directory (where SKILL.md lives): `jsonschema -i ${SESSION_DIR}/spend-caps.json ${SKILL_DIR}/output.schema.json` if the CLI is available; otherwise a structural `jq` check (top-level keys present, every cap has the required fields, outcomes within the enum).
 3. Print the summary:
 
 > Spend-cap setup: {N} candidates, {M} selected, {K} verified (name/scope/amount), {J} user-attested as Spend-cap type, {S} skipped. Output: `${SESSION_DIR}/spend-caps.json`.
