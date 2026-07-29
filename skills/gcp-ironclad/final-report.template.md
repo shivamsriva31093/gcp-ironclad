@@ -54,6 +54,10 @@ No anomalies in the last 60 days.
 
 ## 5. ⚠ Flagged for human review
 
+{{#hasSpendCapFlags}}
+> 💡 `recommend_spend_cap` flags below have a guided path: run the **`gcp-spend-cap-setup`** skill to be walked through console creation and verification.
+{{/hasSpendCapFlags}}
+
 {{#flaggedList}}
 - **{{kind}}** `{{target}}` — _{{reason}}_
 
@@ -67,6 +71,7 @@ No anomalies in the last 60 days.
 
 - [ ] In the Cloud Console, verify the quota changes on `generativelanguage.googleapis.com` for each affected project.
 - [ ] Verify the three budget alerts per billing account in the Billing → Budgets & alerts page.
+- [ ] For any `recommend_spend_cap` flags: run the `gcp-spend-cap-setup` skill to create and verify hard spend caps (console-only, Preview).
 - [ ] If any APIs were disabled on a project you expected to use, re-enable per the rollback commands above.
 - [ ] For each `Flagged for human review` item: decide whether to run the suggested command.
 - [ ] Rotate any SA keys older than 90 days using your normal rotation process.

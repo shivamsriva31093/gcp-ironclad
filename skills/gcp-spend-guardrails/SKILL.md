@@ -93,6 +93,8 @@ These budgets **alert only** — they do not stop spending. For hard enforcement
 
 Since **July 29, 2026**, [spend caps on budgets](https://docs.cloud.google.com/billing/docs/how-to/budgets-spend-caps) (Public Preview) can *pause* a service within minutes of a monthly threshold. As of this writing there is **no gcloud or Billing Budget API surface** — creation is console-only — and pausing a live service can take down production traffic (blocked calls get permission errors). So this action **never applies anything**; it emits one flag per candidate.
 
+To act on these flags with guided discovery, sizing, and post-creation verification, run the **`gcp-spend-cap-setup`** skill — it consumes this file's `recommend_spend_cap` entries directly.
+
 1. Eligible services (July 2026): `generativelanguage.googleapis.com` (Gemini API), `aiplatform.googleapis.com` (Agent Platform), `run.googleapis.com` (Cloud Run), `cloudfunctions.googleapis.com` (Cloud Run functions). Re-check the docs page — coverage will likely expand.
 2. For each project in scope, for each eligible service that is enabled with any 30-day usage, emit a flag entry with reason `"spend_cap_recommended"` and details:
    - Console path: **Billing → Budgets & alerts → Create budget → budget type "Spend cap"**, scope = this project + this service, monthly amount sized like Action 2 (suggest the `2x` multiplier of that service's 30-day spend as a starting point).
